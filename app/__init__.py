@@ -1,0 +1,1 @@
+# SmartQuery app package
