@@ -1,0 +1,74 @@
+[
+  {
+    "question_num": 1,
+    "question": "What is the total revenue (sum of price) from delivered orders?",
+    "description": "Revenue calculation with JOIN + filter",
+    "ground_truth": "[(13221498.11,)]",
+    "agent_answer": "The total revenue from delivered orders is 13,221,498.11.",
+    "status": "SUCCESS",
+    "error": null
+  },
+  {
+    "question_num": 2,
+    "question": "Which 3 states have the highest average order value? Show state and average.",
+    "description": "3-table join with aggregation and ranking",
+    "ground_truth": "[('PB', 191.48), ('AL', 180.89), ('AC', 173.73)]",
+    "agent_answer": "The 3 states with the highest average order value are:\n\n1. **PB** (Paraíba) - Average: $248.33\n2. **AC** (Acre) - Average: $234.29\n3. **RO** (Rondônia) - Average: $233.20",
+    "status": "SUCCESS",
+    "error": null
+  },
+  {
+    "question_num": 3,
+    "question": "How many orders were placed in each month of 2018? Show month and count.",
+    "description": "Date extraction and filtering with strftime",
+    "ground_truth": "[('01', 7269), ('02', 6728), ('03', 7211), ('04', 6939), ('05', 6873), ('06', 6167), ('07', 6292), ('08', 6512), ('09', 16), ('10', 4)]",
+    "agent_answer": "Based on the database records, here are the number of orders placed in each month of 2018:\n\n*   **January:** 7,269\n*   **February:** 6,728\n*   **March:** 7,211\n*   **April:** 6,939\n*   **May:** 6,873\n*   **June:** 6,167\n*   **July:** 6,292\n*   **August:** 6,512\n*   **September:** 16\n*   **October:** 4\n\nThere are no orders recorded for November or December 2018 in the dataset.",
+    "status": "SUCCESS",
+    "error": null
+  },
+  {
+    "question_num": 4,
+    "question": "What is the average delivery time in days for delivered orders?",
+    "description": "Date arithmetic with julianday()",
+    "ground_truth": "[(12.56,)]",
+    "agent_answer": null,
+    "status": "ERROR",
+    "error": "Error code: 429 - {'error': {'message': 'Rate limit reached for model `qwen/qwen3.6-27b` in organization `org_01m0d22afne9rvms9gp2020gmn` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 5439, Requested 4020. Please try again in 10.9425s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}"
+  },
+  {
+    "question_num": 5,
+    "question": "Which payment type generates the most total revenue?",
+    "description": "Aggregation on payment data",
+    "ground_truth": "[('credit_card', 12542084.19)]",
+    "agent_answer": "The payment type that generates the most total revenue is **credit_card**, with a total revenue of approximately **12,542,084.19**.",
+    "status": "SUCCESS",
+    "error": null
+  },
+  {
+    "question_num": 6,
+    "question": "What are the top 5 cities with the most sellers?",
+    "description": "Simple aggregation on sellers",
+    "ground_truth": "[('sao paulo', 694), ('curitiba', 127), ('rio de janeiro', 96), ('belo horizonte', 68), ('ribeirao preto', 52)]",
+    "agent_answer": "The top 5 cities with the most sellers are:\n\n1. **São Paulo** - 694 sellers\n2. **Curitiba** - 127 sellers\n3. **Rio de Janeiro** - 96 sellers\n4. **Belo Horizonte** - 68 sellers\n5. **Ribeirão Preto** - 52 sellers",
+    "status": "SUCCESS",
+    "error": null
+  },
+  {
+    "question_num": 7,
+    "question": "What is the average review score for the 'health_beauty' product category?",
+    "description": "5-table join with category filter",
+    "ground_truth": "[(4.14,)]",
+    "agent_answer": "The average review score for the 'health_beauty' (beleza_saude) product category is approximately **4.14**.",
+    "status": "SUCCESS",
+    "error": null
+  },
+  {
+    "question_num": 8,
+    "question": "How many orders had more than one item?",
+    "description": "Subquery with HAVING clause",
+    "ground_truth": "[(9803,)]",
+    "agent_answer": "9803 orders had more than one item.",
+    "status": "SUCCESS",
+    "error": null
+  }
+]
