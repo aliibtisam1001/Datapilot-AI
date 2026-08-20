@@ -164,6 +164,7 @@ def init_agent():
     from langchain_groq import ChatGroq
     from langchain_community.utilities import SQLDatabase
     from langchain_community.agent_toolkits import create_sql_agent, SQLDatabaseToolkit
+    from app.prompts import build_system_prompt
 
     DB_PATH = os.path.join(os.path.dirname(__file__), 'data', 'olist.db')
     DB_URI = f"sqlite:///{os.path.abspath(DB_PATH)}"
@@ -177,22 +178,11 @@ def init_agent():
     db = SQLDatabase.from_uri(DB_URI)
     toolkit = SQLDatabaseToolkit(db=db, llm=llm)
 
-    system_prefix = (
-        "You are an expert SQL assistant querying an SQLite database of Olist Brazilian E-Commerce. "
-        "Given an input question, create a syntactically correct SQLite query to run, then look at the "
-        "results and return a clear answer. "
-        "CRITICAL RULES:\n"
-        "1. ONLY use the SQL tools provided (sql_db_list_tables, sql_db_schema, sql_db_query, sql_db_query_checker).\n"
-        "2. DO NOT call any other tools like python, code execution, or plotting tools.\n"
-        "3. Only generate read-only SELECT queries.\n"
-        "4. When calculating metrics or joining tables, use appropriate column names and aliases."
-    )
-
     agent = create_sql_agent(
         llm=llm,
         toolkit=toolkit,
         agent_type="tool-calling",
-        prefix=system_prefix,
+        prefix=build_system_prompt(),
         verbose=False,
         handle_parsing_errors=True,
         agent_executor_kwargs={"return_intermediate_steps": True},

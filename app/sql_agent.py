@@ -32,12 +32,13 @@ db = SQLDatabase.from_uri(DB_URI)
 # Setup SQL Agent
 from langchain_community.agent_toolkits import create_sql_agent, SQLDatabaseToolkit
 
-toolkit = SQLDatabaseToolkit(db=db, llm=llm)
+from app.prompts import build_system_prompt
 
 agent_executor = create_sql_agent(
     llm=llm,
     toolkit=toolkit,
     agent_type="tool-calling",
+    prefix=build_system_prompt(),
     verbose=True,
     handle_parsing_errors=True,
 )
