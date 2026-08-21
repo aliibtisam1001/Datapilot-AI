@@ -325,73 +325,73 @@ if user_input:
                     main_sql = None
                     if callback_handler.sql_queries:
                         main_sql = callback_handler.sql_queries[-1]
-                
-                # If sql is found, sanitize & validate through guardrails
-                df = pd.DataFrame()
-                if main_sql:
-                    try:
-                        validated_sql = validate_sql(main_sql)
-                        df = run_query_for_chart(db, validated_sql)
-                    except Exception:
-                        df = run_query_for_chart(db, main_sql)
+                    
+                    # If sql is found, sanitize & validate through guardrails
+                    df = pd.DataFrame()
+                    if main_sql:
+                        try:
+                            validated_sql = validate_sql(main_sql)
+                            df = run_query_for_chart(db, validated_sql)
+                        except Exception:
+                            df = run_query_for_chart(db, main_sql)
 
-                # Display answer
-                st.markdown(answer)
+                    # Display answer
+                    st.markdown(answer)
 
-                # Show SQL
-                if main_sql:
-                    with st.expander("📝 Show SQL used", expanded=False):
-                        st.code(main_sql, language="sql")
+                    # Show SQL
+                    if main_sql:
+                        with st.expander("📝 Show SQL used", expanded=False):
+                            st.code(main_sql, language="sql")
 
-                # Show Data Table
-                if not df.empty:
-                    with st.expander("📊 View Data Table", expanded=False):
-                        st.dataframe(df, use_container_width=True)
+                    # Show Data Table
+                    if not df.empty:
+                        with st.expander("📊 View Data Table", expanded=False):
+                            st.dataframe(df, use_container_width=True)
 
-                # Generate and show chart
-                chart_fig = None
-                if not df.empty:
-                    try:
-                        chart_fig = auto_chart(df, user_input)
-                        if chart_fig:
-                            st.plotly_chart(chart_fig, use_container_width=True)
-                    except Exception as ce:
-                        st.caption(f"Chart generation note: {ce}")
+                    # Generate and show chart
+                    chart_fig = None
+                    if not df.empty:
+                        try:
+                            chart_fig = auto_chart(df, user_input)
+                            if chart_fig:
+                                st.plotly_chart(chart_fig, use_container_width=True)
+                        except Exception as ce:
+                            st.caption(f"Chart generation note: {ce}")
 
-                # Generate and show explanation
-                explanation = None
-                if not df.empty:
-                    try:
-                        time.sleep(1)  # Buffer for rate limits
-                        explanation = explain_result(
-                            user_input, df, sql=main_sql, llm=explain_llm
-                        )
-                        if explanation:
-                            st.info(f"💡 **Business Insight:**\n\n{explanation}")
-                    except Exception:
-                        pass  # Explanation is optional, don't break the flow
+                    # Generate and show explanation
+                    explanation = None
+                    if not df.empty:
+                        try:
+                            time.sleep(1)  # Buffer for rate limits
+                            explanation = explain_result(
+                                user_input, df, sql=main_sql, llm=explain_llm
+                            )
+                            if explanation:
+                                st.info(f"💡 **Business Insight:**\n\n{explanation}")
+                        except Exception:
+                            pass  # Explanation is optional, don't break the flow
 
-                # Save to history
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "answer": answer,
-                    "sql": main_sql,
-                    "df": df,
-                    "chart": chart_fig,
-                    "explanation": explanation,
-                })
+                    # Save to history
+                    st.session_state.messages.append({
+                        "role": "assistant",
+                        "answer": answer,
+                        "sql": main_sql,
+                        "df": df,
+                        "chart": chart_fig,
+                        "explanation": explanation,
+                    })
 
-            except Exception as e:
-                error_msg = str(e)
-                if "rate_limit" in error_msg.lower() or "429" in error_msg:
-                    st.error("⏳ Rate limit reached. Please wait ~15 seconds and try again.")
-                else:
-                    st.error(f"❌ Error: {error_msg}")
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "answer": f"Error: {error_msg}",
-                    "sql": None,
-                    "df": pd.DataFrame(),
-                    "chart": None,
-                    "explanation": None,
-                })
+                except Exception as e:
+                    error_msg = str(e)
+                    if "rate_limit" in error_msg.lower() or "429" in error_msg:
+                        st.error("⏳ Rate limit reached. Please wait ~15 seconds and try again.")
+                    else:
+                        st.error(f"❌ Error: {error_msg}")
+                    st.session_state.messages.append({
+                        "role": "assistant",
+                        "answer": f"Error: {error_msg}",
+                        "sql": None,
+                        "df": pd.DataFrame(),
+                        "chart": None,
+                        "explanation": None,
+                    })
