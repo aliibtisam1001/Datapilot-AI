@@ -122,7 +122,6 @@ def _is_time_like(series: pd.Series, col_name: str) -> bool:
 
 def _make_metric(value, label: str, title: str = "") -> go.Figure:
     """Create a big number indicator for a single value."""
-    # Convert numpy types to native Python types
     try:
         numeric_value = float(value)
     except (TypeError, ValueError):
@@ -132,14 +131,15 @@ def _make_metric(value, label: str, title: str = "") -> go.Figure:
     fig.add_trace(go.Indicator(
         mode="number",
         value=numeric_value,
-        number={"font": {"size": 60, "color": "#4FC3F7"}},
-        title={"text": label, "font": {"size": 18, "color": "#B0BEC5"}},
+        number={"font": {"size": 56, "color": "#161C1A", "family": "Space Grotesk, sans-serif"}},
+        title={"text": label, "font": {"size": 15, "color": "#54605B", "family": "IBM Plex Mono, monospace"}},
     ))
     fig.update_layout(
-        title=dict(text=title, font=dict(size=16)),
-        paper_bgcolor="#1a1a2e",
-        plot_bgcolor="#1a1a2e",
-        height=300,
+        title=dict(text=title, font=dict(size=15, color="#161C1A", family="Space Grotesk, sans-serif")),
+        paper_bgcolor="#FFFFFF",
+        plot_bgcolor="#FFFFFF",
+        height=240,
+        margin=dict(l=20, r=20, t=40, b=20),
     )
     return fig
 
@@ -158,16 +158,17 @@ def _make_multi_metric(df: pd.DataFrame, title: str = "") -> go.Figure:
         fig.add_trace(go.Indicator(
             mode="number",
             value=numeric_val,
-            number={"font": {"size": 40, "color": "#4FC3F7"}},
-            title={"text": col, "font": {"size": 14, "color": "#B0BEC5"}},
+            number={"font": {"size": 38, "color": "#161C1A", "family": "Space Grotesk, sans-serif"}},
+            title={"text": col, "font": {"size": 13, "color": "#54605B", "family": "IBM Plex Mono, monospace"}},
             domain={'x': [i / n_cols, (i + 1) / n_cols], 'y': [0, 1]},
         ))
 
     fig.update_layout(
-        title=dict(text=title, font=dict(size=16)),
-        paper_bgcolor="#1a1a2e",
-        plot_bgcolor="#1a1a2e",
-        height=250,
+        title=dict(text=title, font=dict(size=15, color="#161C1A", family="Space Grotesk, sans-serif")),
+        paper_bgcolor="#FFFFFF",
+        plot_bgcolor="#FFFFFF",
+        height=220,
+        margin=dict(l=20, r=20, t=40, b=20),
     )
     return fig
 
@@ -177,21 +178,25 @@ def _make_table(df: pd.DataFrame, title: str = "") -> go.Figure:
     fig = go.Figure(data=[go.Table(
         header=dict(
             values=list(df.columns),
-            fill_color='#16213e',
-            font=dict(color='white', size=13),
+            fill_color='#161C1A',
+            font=dict(color='#F2F3ED', size=12, family="Space Grotesk, sans-serif"),
             align='left',
+            height=30,
         ),
         cells=dict(
             values=[df[col] for col in df.columns],
-            fill_color='#1a1a2e',
-            font=dict(color='#e0e0e0', size=12),
+            fill_color='#FFFFFF',
+            font=dict(color='#161C1A', size=12, family="IBM Plex Mono, monospace"),
             align='left',
+            height=26,
+            line_color='#E1E4D9',
         ),
     )])
     fig.update_layout(
-        title=dict(text=title, font=dict(size=16, color='white')),
-        paper_bgcolor="#1a1a2e",
-        height=min(400, 50 + 30 * len(df)),
+        title=dict(text=title, font=dict(size=15, color='#161C1A', family="Space Grotesk, sans-serif")),
+        paper_bgcolor="#FFFFFF",
+        margin=dict(l=10, r=10, t=35, b=10),
+        height=min(380, 60 + 30 * len(df)),
     )
     return fig
 
@@ -202,29 +207,46 @@ def _make_empty_fig(message: str) -> go.Figure:
     fig.add_annotation(
         text=message, xref="paper", yref="paper",
         x=0.5, y=0.5, showarrow=False,
-        font=dict(size=20, color="#B0BEC5"),
+        font=dict(size=16, color="#54605B", family="IBM Plex Sans, sans-serif"),
     )
     fig.update_layout(
-        paper_bgcolor="#1a1a2e", plot_bgcolor="#1a1a2e",
+        paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
         xaxis=dict(visible=False), yaxis=dict(visible=False),
-        height=200,
+        height=180,
     )
     return fig
 
 
 def _style_fig(fig: go.Figure):
-    """Apply consistent dark theme styling."""
+    """Apply consistent editorial paper & amber/teal theme styling."""
     fig.update_layout(
-        template="plotly_dark",
-        paper_bgcolor="#1a1a2e",
-        plot_bgcolor="#16213e",
-        font=dict(color="#e0e0e0"),
-        title_font=dict(size=16),
-        margin=dict(l=40, r=40, t=60, b=40),
+        paper_bgcolor="#FFFFFF",
+        plot_bgcolor="#FAFAF7",
+        font=dict(color="#161C1A", family="IBM Plex Sans, sans-serif"),
+        title_font=dict(size=15, color="#161C1A", family="Space Grotesk, sans-serif"),
+        margin=dict(l=40, r=30, t=50, b=40),
+        xaxis=dict(
+            gridcolor="#E1E4D9",
+            linecolor="#E1E4D9",
+            tickfont=dict(family="IBM Plex Mono, monospace", size=11, color="#54605B"),
+        ),
+        yaxis=dict(
+            gridcolor="#E1E4D9",
+            linecolor="#E1E4D9",
+            tickfont=dict(family="IBM Plex Mono, monospace", size=11, color="#54605B"),
+        ),
     )
     fig.update_traces(
-        marker_color="#4FC3F7",
+        marker=dict(
+            color="#E5A03B",
+            line=dict(color="#5C3D0E", width=1),
+        ),
         selector=dict(type="bar"),
+    )
+    fig.update_traces(
+        line=dict(color="#1E6F5C", width=2.5),
+        marker=dict(color="#E5A03B", size=7, line=dict(color="#1E6F5C", width=1.5)),
+        selector=dict(type="scatter"),
     )
 
 

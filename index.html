@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartQuery — Ask your data anything</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F2F3ED;
+    --paper-line:#E1E4D9;
+    --ink:#161C1A;
+    --ink-soft:#54605B;
+    --amber:#E5A03B;
+    --amber-ink:#5C3D0E;
+    --slate:#3E5C76;
+    --teal:#1E6F5C;
+    --red:#B4432C;
+    --card:#FFFFFF;
+    --radius:14px;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+    --display: 'Space Grotesk', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:
+      linear-gradient(var(--paper-line) 1px, transparent 1px) 0 0/100% 40px,
+      linear-gradient(90deg, var(--paper-line) 1px, transparent 1px) 0 0/40px 100%,
+      var(--paper);
+    background-attachment:local;
+    background-position: var(--gx,0) var(--gy,0), var(--gx,0) var(--gy,0), 0 0;
+    color:var(--ink);
+    font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important;}
+  }
+  a{color:inherit;}
+  .wrap{max-width:1120px; margin:0 auto; padding:0 28px;}
+
+  /* SCROLL PROGRESS */
+  #progressBar{position:fixed; top:0; left:0; height:3px; width:0%; background:linear-gradient(90deg,var(--amber),var(--teal)); z-index:100; transition:width .08s linear;}
+
+  /* NAV */
+  header{position:sticky; top:0; z-index:50; backdrop-filter:blur(8px); background:rgba(242,243,237,0.85); border-bottom:1px solid var(--paper-line); transition:box-shadow .3s ease, background .3s ease;}
+  header.scrolled{box-shadow:0 8px 24px -18px rgba(22,28,26,0.35);}
+  nav.wrap{display:flex; align-items:center; justify-content:space-between; height:64px; transition:height .3s ease;}
+  header.scrolled nav.wrap{height:56px;}
+  .logo{display:flex; align-items:center; gap:8px; font-family:var(--display); font-weight:700; font-size:19px; letter-spacing:-0.02em;}
+  .logo .dot{width:9px; height:9px; border-radius:2px; background:var(--amber); display:inline-block; transform:rotate(45deg); animation:pulse-dot 2.4s ease-in-out infinite;}
+  @keyframes pulse-dot{0%,100%{transform:rotate(45deg) scale(1); box-shadow:0 0 0 0 rgba(229,160,59,.5);} 50%{transform:rotate(45deg) scale(1.25); box-shadow:0 0 0 5px rgba(229,160,59,0);}}
+  .navlinks{display:flex; gap:28px; font-size:14px; color:var(--ink-soft);}
+  .navlinks a{text-decoration:none; transition:color .15s; position:relative; padding-bottom:4px;}
+  .navlinks a::after{content:""; position:absolute; left:0; right:100%; bottom:0; height:1.5px; background:var(--amber); transition:right .25s cubic-bezier(.2,.8,.2,1);}
+  .navlinks a:hover{color:var(--ink);}
+  .navlinks a:hover::after{right:0;}
+  .btn{
+    font-family:var(--sans); font-weight:600; font-size:14px; border:none; cursor:pointer;
+    padding:10px 18px; border-radius:999px; display:inline-flex; align-items:center; gap:6px;
+    position:relative; overflow:hidden; transition:transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .25s ease, background .2s ease;
+    will-change:transform;
+  }
+  .btn:hover{box-shadow:0 10px 24px -10px rgba(22,28,26,0.35);}
+  .btn:active{transform:scale(.96) !important;}
+  .btn .ripple{position:absolute; border-radius:50%; background:rgba(255,255,255,0.45); transform:scale(0); animation:ripple .6s ease-out; pointer-events:none;}
+  @keyframes ripple{to{transform:scale(2.4); opacity:0;}}
+  .btn-primary{background:var(--ink); color:var(--paper);}
+  .btn-primary:hover{background:#000;}
+  .btn-amber{background:var(--amber); color:var(--amber-ink);}
+  .btn-amber:hover{filter:brightness(1.05);}
+  .btn-ghost{background:transparent; color:var(--ink); border:1px solid var(--paper-line);}
+  .btn-ghost:hover{border-color:var(--ink);}
+  .btn svg, .btn .arrow{transition:transform .25s cubic-bezier(.3,.8,.3,1);}
+  .btn:hover .arrow{transform:translateX(4px);}
+
+  /* HERO */
+  .hero{padding:64px 0 40px; position:relative;}
+  .hero-grid{display:grid; grid-template-columns:1.05fr 1fr; gap:56px; align-items:center; position:relative; z-index:1;}
+  .cursor-blob{
+    position:absolute; width:420px; height:420px; border-radius:50%; pointer-events:none; z-index:0;
+    background:radial-gradient(circle, rgba(229,160,59,0.16), rgba(229,160,59,0) 70%);
+    top:-120px; right:-40px; transition:transform .6s cubic-bezier(.2,.8,.2,1);
+    animation:blob-float 7s ease-in-out infinite;
+  }
+  @keyframes blob-float{0%,100%{transform:translate(0,0);} 50%{transform:translate(-18px,22px);}}
+  .float-chip{
+    position:absolute; font-family:var(--mono); font-size:11px; background:var(--card); border:1px solid var(--paper-line);
+    padding:6px 10px; border-radius:8px; color:var(--ink-soft); box-shadow:0 10px 24px -14px rgba(22,28,26,.3);
+    animation:chip-float 5s ease-in-out infinite; z-index:2;
+  }
+  .float-chip.c1{top:6%; left:-2%; animation-delay:.2s;}
+  .float-chip.c2{bottom:8%; left:6%; animation-delay:1.4s;}
+  @keyframes chip-float{0%,100%{transform:translateY(0);} 50%{transform:translateY(-10px);}}
+  .eyebrow{
+    font-family:var(--mono); font-size:12px; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--teal); display:flex; align-items:center; gap:8px; margin-bottom:18px;
+  }
+  .eyebrow::before{content:""; width:16px; height:1px; background:var(--teal);}
+  h1{
+    font-family:var(--display); font-weight:700; font-size:clamp(36px,5vw,58px);
+    line-height:1.03; letter-spacing:-0.03em; margin:0 0 20px;
+  }
+  h1 .accent{color:var(--amber); position:relative; white-space:nowrap;}
+  .sub{font-size:18px; line-height:1.55; color:var(--ink-soft); max-width:460px; margin-bottom:30px;}
+  .hero-ctas{display:flex; gap:12px; margin-bottom:34px;}
+  .stack-row{display:flex; gap:8px; flex-wrap:wrap;}
+  .pill{
+    font-family:var(--mono); font-size:11.5px; color:var(--ink-soft); background:var(--card);
+    border:1px solid var(--paper-line); padding:6px 11px; border-radius:999px;
+  }
+
+  /* HERO DEMO CARD */
+  .demo-card-wrap{perspective:1200px;}
+  .demo-card{
+    background:var(--card); border-radius:var(--radius); border:1px solid var(--paper-line);
+    box-shadow:0 24px 48px -24px rgba(22,28,26,0.18);
+    overflow:hidden;
+    transform-style:preserve-3d;
+    transition:transform .3s cubic-bezier(.2,.8,.2,1), box-shadow .3s ease;
+    animation:card-in .7s cubic-bezier(.2,.8,.2,1) both;
+  }
+  .demo-card:hover{box-shadow:0 32px 64px -24px rgba(22,28,26,0.28);}
+  @keyframes card-in{from{opacity:0; transform:translateY(24px) scale(.97);} to{opacity:1; transform:translateY(0) scale(1);}}
+  .demo-topbar{
+    display:flex; align-items:center; gap:8px; padding:12px 16px; border-bottom:1px solid var(--paper-line);
+    font-family:var(--mono); font-size:12px; color:var(--ink-soft);
+  }
+  .demo-dots{display:flex; gap:5px;}
+  .demo-dots span{width:8px; height:8px; border-radius:50%; background:var(--paper-line);}
+  .demo-body{padding:22px; min-height:330px; display:flex; flex-direction:column; gap:14px;}
+
+  .chat-bubble-user{
+    align-self:flex-end; max-width:88%; background:var(--ink); color:var(--paper);
+    padding:10px 14px; border-radius:12px 12px 2px 12px; font-size:14px;
+  }
+  .type-cursor{display:inline-block; width:2px; height:14px; background:currentColor; vertical-align:-2px; margin-left:2px; animation:blink 1s steps(1) infinite;}
+  @keyframes blink{50%{opacity:0;}}
+
+  .sql-block{
+    background:#12181B; color:#DCE4E1; border-radius:10px; padding:14px 16px;
+    font-family:var(--mono); font-size:12.5px; line-height:1.6; opacity:0; transform:translateY(6px);
+    transition:opacity .35s ease, transform .35s ease; white-space:pre-wrap;
+  }
+  .sql-block.show{opacity:1; transform:translateY(0);}
+  .sql-kw{color:var(--amber);}
+  .sql-str{color:#8FD6C4;}
+
+  .guard-row{
+    display:flex; align-items:center; gap:8px; font-family:var(--mono); font-size:11.5px;
+    color:var(--teal); opacity:0; transition:opacity .3s ease;
+  }
+  .guard-row.show{opacity:1;}
+  .guard-check{width:14px; height:14px; border-radius:50%; background:var(--teal); position:relative; flex:none;}
+  .guard-check::after{content:""; position:absolute; left:4px; top:2px; width:4px; height:7px; border:solid #fff; border-width:0 2px 2px 0; transform:rotate(40deg);}
+  .guard-check::before{content:""; position:absolute; inset:-4px; border-radius:50%; border:1.5px solid var(--teal); opacity:0;}
+  .guard-row.show .guard-check::before{animation:ring-pulse .8s ease-out;}
+  @keyframes ring-pulse{0%{transform:scale(.6); opacity:.9;} 100%{transform:scale(2.2); opacity:0;}}
+
+  .chart-wrap{
+    display:flex; align-items:flex-end; gap:10px; height:110px; padding:6px 4px 0;
+    opacity:0; transition:opacity .3s ease;
+  }
+  .chart-wrap.show{opacity:1;}
+  .bar{flex:1; background:linear-gradient(180deg, var(--amber), #C97F1B); border-radius:5px 5px 0 0; height:0; transition:height .6s cubic-bezier(.2,.9,.3,1), transform .2s ease, filter .2s ease; position:relative; cursor:pointer;}
+  .bar:hover{transform:scaleY(1.03) translateY(-2px); filter:brightness(1.08);}
+  .bar span{position:absolute; bottom:-20px; left:0; right:0; text-align:center; font-family:var(--mono); font-size:10px; color:var(--ink-soft);}
+  .bar::before{
+    content:attr(data-tip); position:absolute; top:-28px; left:50%; transform:translateX(-50%) translateY(4px);
+    background:var(--ink); color:var(--paper); font-family:var(--mono); font-size:10px; padding:3px 7px; border-radius:5px;
+    opacity:0; pointer-events:none; transition:opacity .2s ease, transform .2s ease; white-space:nowrap;
+  }
+  .bar:hover::before{opacity:1; transform:translateX(-50%) translateY(0);}
+
+  .explain-block{
+    font-size:13.5px; color:var(--ink-soft); border-left:2px solid var(--amber); padding-left:12px;
+    opacity:0; transition:opacity .4s ease; line-height:1.5;
+  }
+  .explain-block.show{opacity:1;}
+
+  /* SECTIONS */
+  section{padding:88px 0;}
+  .section-head{max-width:640px; margin-bottom:52px;}
+  .section-head .eyebrow{margin-bottom:14px;}
+  h2{font-family:var(--display); font-weight:700; font-size:clamp(28px,3.4vw,40px); letter-spacing:-0.02em; margin:0 0 14px;}
+  .section-head p{color:var(--ink-soft); font-size:16px; line-height:1.6; margin:0;}
+
+  /* PIPELINE */
+  .pipeline{position:relative;}
+  .pipeline-track{
+    display:grid; grid-template-columns:repeat(5,1fr); gap:0; position:relative;
+  }
+  .pipeline-track::before{
+    content:""; position:absolute; top:22px; left:10%; right:10%; height:1px; background:var(--paper-line);
+    z-index:0;
+  }
+  .pstep{position:relative; z-index:1; padding-right:18px;}
+  .pstep .num{
+    width:44px; height:44px; border-radius:50%; background:var(--card); border:1px solid var(--paper-line);
+    display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-size:14px;
+    margin-bottom:18px; color:var(--ink); transition:transform .3s cubic-bezier(.3,.8,.3,1), background .25s ease, color .25s ease, border-color .25s ease;
+  }
+  .pstep:hover .num{transform:scale(1.12) rotate(-6deg); background:var(--amber); border-color:var(--amber); color:var(--amber-ink);}
+  .pstep:nth-child(3) .num{background:var(--ink); color:var(--paper); border-color:var(--ink);}
+  .pstep:nth-child(3):hover .num{background:var(--amber); border-color:var(--amber); color:var(--amber-ink);}
+  .pstep h4{font-family:var(--display); font-size:16px; margin:0 0 8px; letter-spacing:-0.01em;}
+  .pstep p{font-size:13.5px; color:var(--ink-soft); line-height:1.5; margin:0;}
+
+  /* GUARDRAIL COMPARE */
+  .compare{display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--paper-line); border:1px solid var(--paper-line); border-radius:var(--radius); overflow:hidden;}
+  .compare-col{background:var(--card); padding:26px 28px; transition:background .25s ease;}
+  .compare-col li{transition:transform .2s ease;}
+  .compare-col li:hover{transform:translateX(4px);}
+  .compare-col.blocked{background:#FBF3EF;}
+  .compare-col h3{font-family:var(--display); font-size:17px; margin:0 0 16px; display:flex; align-items:center; gap:8px;}
+  .compare-col ul{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:11px;}
+  .compare-col li{font-family:var(--mono); font-size:13px; display:flex; align-items:center; gap:10px; color:var(--ink-soft);}
+  .tag-ok{color:var(--teal); font-weight:600;}
+  .tag-no{color:var(--red); font-weight:600;}
+
+  /* BENCHMARK */
+  .bench-grid{display:grid; grid-template-columns:1fr 1fr; gap:56px; align-items:center;}
+  .bench-numbers{display:flex; gap:40px; align-items:flex-end;}
+  .bench-num{font-family:var(--display); font-weight:700; font-size:64px; letter-spacing:-0.03em; line-height:1;}
+  .bench-num.before{color:var(--ink-soft);}
+  .bench-num.after{color:var(--teal);}
+  .bench-label{font-family:var(--mono); font-size:11.5px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.06em; margin-top:8px;}
+  .arrow-note{font-family:var(--mono); font-size:12px; color:var(--ink-soft); margin:18px 0 0;}
+  .bench-bars{display:flex; flex-direction:column; gap:14px;}
+  .brow{display:flex; align-items:center; gap:12px;}
+  .brow .lbl{width:150px; font-size:13px; color:var(--ink-soft); flex:none;}
+  .brow .track{flex:1; background:var(--paper-line); height:10px; border-radius:6px; overflow:hidden;}
+  .brow .fill{height:100%; background:var(--teal); width:0; border-radius:6px; transition:width 1s ease;}
+  .brow .pct{width:38px; font-family:var(--mono); font-size:12px; text-align:right; flex:none;}
+
+  /* TABS */
+  .tabs-head{display:flex; gap:28px; border-bottom:1px solid var(--paper-line); margin-bottom:30px;}
+  .tab-btn{
+    background:none; border:none; cursor:pointer; padding:0 0 14px; font-family:var(--sans);
+    font-size:15px; font-weight:600; color:var(--ink-soft); border-bottom:2px solid transparent; margin-bottom:-1px;
+  }
+  .tab-btn{transition:color .2s ease, transform .2s ease;}
+  .tab-btn:hover{transform:translateY(-2px);}
+  .tab-btn.active{color:var(--ink); border-bottom-color:var(--amber);}
+  .tab-panel{display:none; grid-template-columns:1fr 1fr; gap:20px;}
+  .tab-panel.active{display:grid; animation:panel-in .4s cubic-bezier(.2,.8,.2,1) both;}
+  @keyframes panel-in{from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);}}
+  .qcard{background:var(--card); border:1px solid var(--paper-line); border-radius:var(--radius); padding:20px; transition:transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .25s ease, border-color .25s ease;}
+  .qcard:hover{transform:translateY(-5px); box-shadow:0 20px 40px -22px rgba(22,28,26,.3); border-color:var(--amber);}
+  .qcard .q{font-size:14.5px; font-weight:600; margin-bottom:10px;}
+  .qcard code{display:block; font-family:var(--mono); font-size:12px; background:#12181B; color:#DCE4E1; padding:12px; border-radius:8px; line-height:1.6; white-space:pre-wrap;}
+
+  /* FOOTER CTA */
+  .cta-band{background:var(--ink); color:var(--paper); border-radius:20px; padding:56px 48px; display:flex; align-items:center; justify-content:space-between; gap:24px; flex-wrap:wrap; position:relative; overflow:hidden;}
+  .cta-band::before{
+    content:""; position:absolute; width:280px; height:280px; border-radius:50%;
+    background:radial-gradient(circle, rgba(229,160,59,0.35), rgba(229,160,59,0) 70%);
+    top:-90px; right:10%; animation:blob-float 6s ease-in-out infinite;
+  }
+  .cta-band .btn{position:relative; z-index:1; animation:glow-pulse 2.6s ease-in-out infinite;}
+  @keyframes glow-pulse{0%,100%{box-shadow:0 0 0 0 rgba(229,160,59,.45);} 50%{box-shadow:0 0 0 10px rgba(229,160,59,0);}}
+  .cta-band h2{color:var(--paper); margin:0;}
+  .cta-band p{color:#B7BFB9; margin:8px 0 0; font-size:15px;}
+  footer{padding:36px 0 60px; font-size:13px; color:var(--ink-soft); display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px;}
+
+  @media (max-width:860px){
+    .hero-grid{grid-template-columns:1fr;}
+    .pipeline-track{grid-template-columns:1fr 1fr; row-gap:28px;}
+    .pipeline-track::before{display:none;}
+    .compare{grid-template-columns:1fr;}
+    .bench-grid{grid-template-columns:1fr; gap:32px;}
+    .tab-panel{grid-template-columns:1fr;}
+    .navlinks{display:none;}
+  }
+</style>
+</head>
+<body>
+<div id="progressBar"></div>
+
+<header>
+  <nav class="wrap">
+    <div class="logo"><span class="dot"></span> SmartQuery</div>
+    <div class="navlinks">
+      <a href="#pipeline">How it works</a>
+      <a href="#guardrails">Guardrails</a>
+      <a href="#benchmark">Benchmark</a>
+      <a href="#questions">Examples</a>
+    </div>
+    <a href="http://localhost:8501" target="_blank" style="text-decoration:none;"><button class="btn btn-primary">Try the demo <span class="arrow">→</span></button></a>
+  </nav>
+</header>
+
+<section class="hero">
+  <div class="cursor-blob" id="cursorBlob"></div>
+  <div class="float-chip c1">✓ SELECT only</div>
+  <div class="float-chip c2">100% benchmark accuracy</div>
+  <div class="wrap hero-grid">
+    <div>
+      <div class="eyebrow">Natural language → SQL → answer</div>
+      <h1>Ask your data<br>anything<span class="accent">.</span></h1>
+      <p class="sub">SmartQuery sits on top of your database and answers plain-English business questions with the real SQL it ran, a chart, and a plain-English explanation — no analyst required.</p>
+      <div class="hero-ctas">
+        <a href="http://localhost:8501" target="_blank" style="text-decoration:none;"><button class="btn btn-amber">Ask a question <span class="arrow">→</span></button></a>
+        <a href="#pipeline" style="text-decoration:none;"><button class="btn btn-ghost">See the architecture</button></a>
+      </div>
+      <div class="stack-row">
+        <span class="pill">Groq · Qwen 3.6-27B</span>
+        <span class="pill">LangChain SQL Agent</span>
+        <span class="pill">SQLite (Olist 100k)</span>
+        <span class="pill">Plotly</span>
+        <span class="pill">Streamlit</span>
+      </div>
+    </div>
+
+    <div class="demo-card-wrap">
+    <div class="demo-card" id="demoCard">
+      <div class="demo-topbar">
+        <div class="demo-dots"><span></span><span></span><span></span></div>
+        smartquery — live session
+      </div>
+      <div class="demo-body" id="demoBody">
+        <div class="chat-bubble-user" id="typedQuestion"></div>
+        <div class="sql-block" id="sqlBlock"></div>
+        <div class="guard-row" id="guardRow"><span class="guard-check"></span> Guardrail passed — SELECT only, 1,000 row limit</div>
+        <div class="chart-wrap" id="chartWrap">
+          <div class="bar" data-tip="R$1.26M" style="height:0"><span>Health</span></div>
+          <div class="bar" data-tip="R$1.21M" style="height:0"><span>Watches</span></div>
+          <div class="bar" data-tip="R$1.04M" style="height:0"><span>Bed/Bath</span></div>
+          <div class="bar" data-tip="R$0.99M" style="height:0"><span>Sports</span></div>
+        </div>
+        <div class="explain-block" id="explainBlock">Category <strong>Health & Beauty</strong> led in revenue at R$1.26M, followed closely by Watches & Gifts at R$1.21M.</div>
+      </div>
+    </div>
+    </div>
+  </div>
+</section>
+
+<section id="pipeline">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">The pipeline</div>
+      <h2>Every question follows the same five steps</h2>
+      <p>No black box — each step is a real, inspectable stage between your question and the answer.</p>
+    </div>
+    <div class="pipeline-track">
+      <div class="pstep"><div class="num">1</div><h4>Ask</h4><p>Type a question in plain English in the chat interface.</p></div>
+      <div class="pstep"><div class="num">2</div><h4>Generate SQL</h4><p>The LangChain agent reads your schema and drafts a query.</p></div>
+      <div class="pstep"><div class="num">3</div><h4>Guardrail check</h4><p>Only SELECT survives. Anything else is rejected before it runs.</p></div>
+      <div class="pstep"><div class="num">4</div><h4>Run + chart</h4><p>The query executes and the result auto-picks a chart type.</p></div>
+      <div class="pstep"><div class="num">5</div><h4>Explain</h4><p>The model summarizes the finding in two or three sentences.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="guardrails">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">Safety layer</div>
+      <h2>What gets through, what gets blocked</h2>
+      <p>The guardrail layer inspects every generated query before it ever touches your database.</p>
+    </div>
+    <div class="compare">
+      <div class="compare-col">
+        <h3>Allowed <span class="tag-ok">✓</span></h3>
+        <ul>
+          <li><span class="tag-ok">✓</span> SELECT ... FROM orders</li>
+          <li><span class="tag-ok">✓</span> Joins across products, customers, order_items</li>
+          <li><span class="tag-ok">✓</span> Aggregations, GROUP BY, date filters</li>
+          <li><span class="tag-ok">✓</span> Capped at 1,000 rows returned</li>
+        </ul>
+      </div>
+      <div class="compare-col blocked">
+        <h3>Blocked <span class="tag-no">✕</span></h3>
+        <ul>
+          <li><span class="tag-no">✕</span> INSERT / UPDATE / DELETE</li>
+          <li><span class="tag-no">✕</span> DROP / ALTER TABLE</li>
+          <li><span class="tag-no">✕</span> Statement chaining — ; --</li>
+          <li><span class="tag-no">✕</span> Unbounded result sets</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="benchmark">
+  <div class="wrap bench-grid">
+    <div>
+      <div class="eyebrow">Module 12 / 13</div>
+      <h2>Measured accuracy, not a vibe</h2>
+      <div class="bench-numbers">
+        <div><div class="bench-num before" data-target="70">0%</div><div class="bench-label">Baseline Prompting</div></div>
+        <div><div class="bench-num after" data-target="100">0%</div><div class="bench-label">Domain Rules & Few-Shot</div></div>
+      </div>
+      <p class="arrow-note">// scored against the 10-question benchmark suite, 100% execution accuracy</p>
+    </div>
+    <div class="bench-bars" id="benchBars">
+      <div class="brow"><div class="lbl">Simple lookups</div><div class="track"><div class="fill" data-pct="100"></div></div><div class="pct">100%</div></div>
+      <div class="brow"><div class="lbl">Aggregations</div><div class="track"><div class="fill" data-pct="100"></div></div><div class="pct">100%</div></div>
+      <div class="brow"><div class="lbl">Date Filters</div><div class="track"><div class="fill" data-pct="100"></div></div><div class="pct">100%</div></div>
+      <div class="brow"><div class="lbl">Multi-Table Joins</div><div class="track"><div class="fill" data-pct="100"></div></div><div class="pct">100%</div></div>
+      <div class="brow"><div class="lbl">Subqueries / HAVING</div><div class="track"><div class="fill" data-pct="100"></div></div><div class="pct">100%</div></div>
+    </div>
+  </div>
+</section>
+
+<section id="questions">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">Try it yourself</div>
+      <h2>Built for every kind of question</h2>
+    </div>
+    <div class="tabs-head">
+      <button class="tab-btn active" data-tab="lookup">Lookups</button>
+      <button class="tab-btn" data-tab="agg">Aggregations</button>
+      <button class="tab-btn" data-tab="join">Joins</button>
+    </div>
+    <div class="tab-panel active" data-panel="lookup">
+      <div class="qcard"><div class="q">"What is the total revenue from delivered orders?"</div><code>SELECT ROUND(SUM(oi.price), 2) AS total_revenue<br>FROM order_items oi<br>JOIN orders o ON oi.order_id = o.order_id<br>WHERE o.order_status = 'delivered';</code></div>
+      <div class="qcard"><div class="q">"How many unique customers are there in total?"</div><code>SELECT COUNT(DISTINCT customer_unique_id)<br>FROM customers;</code></div>
+    </div>
+    <div class="tab-panel" data-panel="agg">
+      <div class="qcard"><div class="q">"How many orders were placed each month in 2018?"</div><code>SELECT strftime('%Y-%m', order_purchase_timestamp) AS mo,<br>COUNT(order_id) FROM orders<br>WHERE strftime('%Y', order_purchase_timestamp) = '2018'<br>GROUP BY mo ORDER BY mo ASC;</code></div>
+      <div class="qcard"><div class="q">"Which payment type generates the most total payment value?"</div><code>SELECT payment_type, SUM(payment_value)<br>FROM order_payments<br>GROUP BY payment_type<br>ORDER BY 2 DESC LIMIT 1;</code></div>
+    </div>
+    <div class="tab-panel" data-panel="join">
+      <div class="qcard"><div class="q">"What are the top 5 product categories by revenue in English?"</div><code>SELECT t.product_category_name_english, SUM(oi.price)<br>FROM order_items oi<br>JOIN products p ON oi.product_id = p.product_id<br>JOIN product_category_name_translation t ON p.product_category_name = t.product_category_name<br>GROUP BY 1 ORDER BY 2 DESC LIMIT 5;</code></div>
+      <div class="qcard"><div class="q">"What is the average delivery time in days?"</div><code>SELECT ROUND(AVG(julianday(order_delivered_customer_date) - julianday(order_purchase_timestamp)), 2)<br>FROM orders WHERE order_status = 'delivered';</code></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="cta-band">
+      <div>
+        <h2>See the SQL. Trust the answer.</h2>
+        <p>Deployed on Streamlit Community Cloud — free, live, and open source.</p>
+      </div>
+      <a href="http://localhost:8501" target="_blank" style="text-decoration:none;"><button class="btn btn-amber">Open live demo <span class="arrow">→</span></button></a>
+    </div>
+  </div>
+</section>
+
+<footer class="wrap">
+  <div>SmartQuery — an LLM-powered BI assistant for the Olist E-Commerce dataset.</div>
+  <div>GitHub · README · Benchmark results</div>
+</footer>
+
+<script>
+// ---- Hero demo animation loop ----
+const question = "What are the top 5 product categories by revenue?";
+const sqlHTML =
+`<span class="sql-kw">SELECT</span> t.product_category_name_english,
+       <span class="sql-kw">SUM</span>(oi.price) <span class="sql-kw">AS</span> total_revenue
+<span class="sql-kw">FROM</span> order_items oi
+<span class="sql-kw">JOIN</span> products p <span class="sql-kw">ON</span> oi.product_id = p.product_id
+<span class="sql-kw">JOIN</span> product_category_name_translation t <span class="sql-kw">ON</span> p.product_category_name = t.product_category_name
+<span class="sql-kw">GROUP BY</span> t.product_category_name_english
+<span class="sql-kw">ORDER BY</span> total_revenue <span class="sql-kw">DESC</span>
+<span class="sql-kw">LIMIT</span> 5;`;
+
+const barHeights = [96, 90, 78, 72];
+const els = {
+  q: document.getElementById('typedQuestion'),
+  sql: document.getElementById('sqlBlock'),
+  guard: document.getElementById('guardRow'),
+  chart: document.getElementById('chartWrap'),
+  explain: document.getElementById('explainBlock'),
+};
+
+function resetDemo(){
+  els.q.textContent = '';
+  els.sql.classList.remove('show'); els.sql.innerHTML = '';
+  els.guard.classList.remove('show');
+  els.chart.classList.remove('show');
+  document.querySelectorAll('#chartWrap .bar').forEach(b=>b.style.height='0px');
+  els.explain.classList.remove('show');
+}
+
+function typeText(el, text, speed, done){
+  let i = 0;
+  el.innerHTML = '<span class="typed"></span><span class="type-cursor"></span>';
+  const span = el.querySelector('.typed');
+  const timer = setInterval(()=>{
+    span.textContent = text.slice(0, i+1);
+    i++;
+    if(i >= text.length){
+      clearInterval(timer);
+      const cur = el.querySelector('.type-cursor');
+      if(cur) cur.remove();
+      if(done) done();
+    }
+  }, speed);
+}
+
+function runDemo(){
+  resetDemo();
+  typeText(els.q, question, 28, ()=>{
+    setTimeout(()=>{
+      els.sql.innerHTML = sqlHTML;
+      els.sql.classList.add('show');
+      setTimeout(()=>{
+        els.guard.classList.add('show');
+        setTimeout(()=>{
+          els.chart.classList.add('show');
+          const bars = document.querySelectorAll('#chartWrap .bar');
+          bars.forEach((b,idx)=> b.style.height = barHeights[idx] + 'px');
+          setTimeout(()=>{ els.explain.classList.add('show'); }, 700);
+        }, 500);
+      }, 600);
+    }, 300);
+  });
+}
+
+runDemo();
+setInterval(runDemo, 9000);
+
+// ---- Benchmark bars: animate on scroll into view ----
+const benchObserver = new IntersectionObserver((entries)=>{
+  entries.forEach(entry=>{
+    if(entry.isIntersecting){
+      document.querySelectorAll('#benchBars .fill').forEach(f=>{
+        f.style.width = f.dataset.pct + '%';
+      });
+      benchObserver.disconnect();
+    }
+  });
+}, { threshold:0.4 });
+benchObserver.observe(document.getElementById('benchBars'));
+
+// ---- Tabs ----
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelector(`.tab-panel[data-panel="${btn.dataset.tab}"]`).classList.add('active');
+  });
+});
+
+// ---- Scroll reveal for sections ----
+const revealTargets = document.querySelectorAll('section');
+const revealObserver = new IntersectionObserver((entries)=>{
+  entries.forEach(entry=>{
+    if(entry.isIntersecting){
+      entry.target.style.opacity = 1;
+      entry.target.style.transform = 'translateY(0)';
+    }
+  });
+}, { threshold:0.1 });
+revealTargets.forEach(s=>{
+  s.style.opacity = 0;
+  s.style.transform = 'translateY(16px)';
+  s.style.transition = 'opacity .6s ease, transform .6s ease';
+  revealObserver.observe(s);
+});
+document.querySelector('.hero').style.opacity = 1;
+document.querySelector('.hero').style.transform = 'none';
+
+// ---- Scroll progress bar + nav shrink ----
+const progressBar = document.getElementById('progressBar');
+const headerEl = document.querySelector('header');
+window.addEventListener('scroll', ()=>{
+  const h = document.documentElement;
+  const scrolled = (h.scrollTop) / (h.scrollHeight - h.clientHeight) * 100;
+  progressBar.style.width = scrolled + '%';
+  headerEl.classList.toggle('scrolled', h.scrollTop > 12);
+}, { passive:true });
+
+// ---- Button ripple ----
+document.querySelectorAll('.btn').forEach(btn=>{
+  btn.addEventListener('click', function(e){
+    const rect = this.getBoundingClientRect();
+    const ripple = document.createElement('span');
+    const size = Math.max(rect.width, rect.height);
+    ripple.className = 'ripple';
+    ripple.style.width = ripple.style.height = size + 'px';
+    ripple.style.left = (e.clientX - rect.left - size/2) + 'px';
+    ripple.style.top = (e.clientY - rect.top - size/2) + 'px';
+    this.appendChild(ripple);
+    setTimeout(()=>ripple.remove(), 650);
+  });
+});
+
+// ---- Cursor-follow blob + grid parallax in hero ----
+const heroSection = document.querySelector('.hero');
+const cursorBlob = document.getElementById('cursorBlob');
+heroSection.addEventListener('mousemove', (e)=>{
+  const rect = heroSection.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  cursorBlob.style.transform = `translate(${(x - rect.width/2) * 0.06}px, ${(y - rect.height/2) * 0.06}px)`;
+  document.body.style.setProperty('--gx', (x*0.01) + 'px');
+  document.body.style.setProperty('--gy', (y*0.01) + 'px');
+});
+
+// ---- Tilt effect on demo card ----
+const demoCard = document.getElementById('demoCard');
+const demoWrap = document.querySelector('.demo-card-wrap');
+if(demoWrap){
+  demoWrap.addEventListener('mousemove', (e)=>{
+    const r = demoCard.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width - 0.5;
+    const py = (e.clientY - r.top) / r.height - 0.5;
+    demoCard.style.transform = `rotateY(${px*6}deg) rotateX(${-py*6}deg) translateZ(0)`;
+  });
+  demoWrap.addEventListener('mouseleave', ()=>{
+    demoCard.style.transform = 'rotateY(0) rotateX(0)';
+  });
+}
+
+// ---- Count-up numbers on scroll into view ----
+function countUp(el){
+  const target = parseInt(el.dataset.target, 10);
+  let current = 0;
+  const step = Math.max(1, Math.round(target / 40));
+  const timer = setInterval(()=>{
+    current += step;
+    if(current >= target){ current = target; clearInterval(timer); }
+    el.textContent = current + '%';
+  }, 22);
+}
+const countObserver = new IntersectionObserver((entries)=>{
+  entries.forEach(entry=>{
+    if(entry.isIntersecting){
+      countUp(entry.target);
+      countObserver.unobserve(entry.target);
+    }
+  });
+}, { threshold:0.6 });
+document.querySelectorAll('.bench-num[data-target]').forEach(el=>countObserver.observe(el));
+
+// ---- Staggered reveal for grouped items ----
+function staggerReveal(selector, delayStep){
+  const groups = document.querySelectorAll(selector);
+  groups.forEach(group=>{
+    const items = Array.from(group.children);
+    items.forEach(item=>{
+      item.style.opacity = 0;
+      item.style.transform = 'translateY(14px)';
+      item.style.transition = 'opacity .5s ease, transform .5s ease';
+    });
+    const obs = new IntersectionObserver((entries)=>{
+      entries.forEach(entry=>{
+        if(entry.isIntersecting){
+          items.forEach((item, i)=>{
+            setTimeout(()=>{
+              item.style.opacity = 1;
+              item.style.transform = 'translateY(0)';
+            }, i * delayStep);
+          });
+          obs.disconnect();
+        }
+      });
+    }, { threshold:0.2 });
+    obs.observe(group);
+  });
+}
+staggerReveal('.pipeline-track', 110);
+staggerReveal('.compare', 140);
+staggerReveal('.bench-bars', 90);
+document.querySelectorAll('.tab-panel').forEach(panel=>{
+  const items = panel.querySelectorAll('.qcard');
+  items.forEach((item,i)=>{ item.style.transitionDelay = (i*80) + 'ms'; });
+});
+</script>
+</body>
+</html>

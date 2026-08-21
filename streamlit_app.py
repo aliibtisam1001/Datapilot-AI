@@ -19,90 +19,216 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ── Custom CSS ──
+# ── Custom CSS Design System ──
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
-    /* Global */
+    :root {
+        --paper: #F2F3ED;
+        --paper-line: #E1E4D9;
+        --ink: #161C1A;
+        --ink-soft: #54605B;
+        --amber: #E5A03B;
+        --amber-ink: #5C3D0E;
+        --slate: #3E5C76;
+        --teal: #1E6F5C;
+        --red: #B4432C;
+        --card: #FFFFFF;
+        --radius: 14px;
+        --mono: 'IBM Plex Mono', monospace;
+        --sans: 'IBM Plex Sans', sans-serif;
+        --display: 'Space Grotesk', sans-serif;
+    }
+
+    /* Global App Background & Grid */
     .stApp {
-        font-family: 'Inter', sans-serif;
+        background:
+            linear-gradient(var(--paper-line) 1px, transparent 1px) 0 0/100% 40px,
+            linear-gradient(90deg, var(--paper-line) 1px, transparent 1px) 0 0/40px 100%,
+            var(--paper) !important;
+        background-attachment: local !important;
+        color: var(--ink) !important;
+        font-family: var(--sans) !important;
     }
 
-    /* Header */
-    .main-header {
-        text-align: center;
-        padding: 1.5rem 0 1rem 0;
+    /* Main Container max-width */
+    .block-container {
+        max-width: 1100px !important;
+        padding-top: 2rem !important;
+        padding-bottom: 4rem !important;
     }
-    .main-header h1 {
-        background: linear-gradient(135deg, #4FC3F7, #7C4DFF, #FF4081);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        font-size: 2.5rem;
+
+    /* Header & Hero */
+    .hero-wrap {
+        text-align: left;
+        padding: 1.5rem 0 1.2rem 0;
+        position: relative;
+        border-bottom: 1px solid var(--paper-line);
+        margin-bottom: 1.5rem;
+    }
+    .hero-eyebrow {
+        font-family: var(--mono);
+        font-size: 11.5px;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: var(--teal);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+    .hero-eyebrow::before {
+        content: "";
+        width: 16px;
+        height: 1.5px;
+        background: var(--teal);
+    }
+    .hero-title {
+        font-family: var(--display);
         font-weight: 700;
-        margin: 0;
+        font-size: clamp(32px, 4.5vw, 48px);
+        line-height: 1.05;
+        letter-spacing: -0.03em;
+        margin: 0 0 10px;
+        color: var(--ink);
+        display: flex;
+        align-items: center;
+        gap: 12px;
     }
-    .main-header p {
-        color: #B0BEC5;
-        font-size: 1.05rem;
-        margin-top: 0.3rem;
+    .hero-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 3px;
+        background: var(--amber);
+        display: inline-block;
+        transform: rotate(45deg);
+        box-shadow: 0 0 0 4px rgba(229,160,59,0.2);
     }
-
-    /* Chat messages */
-    .user-msg {
-        background: linear-gradient(135deg, #1a237e, #283593);
-        border-radius: 16px 16px 4px 16px;
-        padding: 1rem 1.2rem;
-        margin: 0.5rem 0;
-        color: #e3f2fd;
-        border-left: 3px solid #7C4DFF;
+    .hero-sub {
+        font-size: 16px;
+        line-height: 1.55;
+        color: var(--ink-soft);
+        max-width: 650px;
+        margin-bottom: 16px;
     }
-    .bot-msg {
-        background: linear-gradient(135deg, #1a1a2e, #16213e);
-        border-radius: 16px 16px 16px 4px;
-        padding: 1rem 1.2rem;
-        margin: 0.5rem 0;
-        color: #e0e0e0;
-        border-left: 3px solid #4FC3F7;
+    .stack-row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 10px;
     }
-
-    /* SQL expander */
-    .sql-block {
-        background: #0d1117;
-        border: 1px solid #30363d;
-        border-radius: 8px;
-        padding: 1rem;
-        font-family: 'Fira Code', 'Consolas', monospace;
-        font-size: 0.85rem;
-        color: #79c0ff;
-        overflow-x: auto;
-    }
-
-    /* Metric display */
-    .metric-card {
-        background: linear-gradient(135deg, #1a1a2e, #16213e);
-        border: 1px solid #30363d;
-        border-radius: 12px;
-        padding: 1.5rem;
-        text-align: center;
-    }
-    .metric-value {
-        font-size: 2.5rem;
-        font-weight: 700;
-        color: #4FC3F7;
-    }
-    .metric-label {
-        font-size: 0.9rem;
-        color: #B0BEC5;
-        margin-top: 0.3rem;
+    .stack-pill {
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--ink-soft);
+        background: var(--card);
+        border: 1px solid var(--paper-line);
+        padding: 4px 10px;
+        border-radius: 999px;
     }
 
-    /* Input area styling */
-    .stChatInput {
-        border-color: #4FC3F7 !important;
+    /* Guardrail Badge */
+    .guard-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-family: var(--mono);
+        font-size: 11.5px;
+        color: var(--teal);
+        background: #E8F4F0;
+        border: 1px solid #C2E3D8;
+        padding: 4px 10px;
+        border-radius: 6px;
+        margin-bottom: 12px;
     }
 
-    /* Hide Streamlit branding */
+    /* Chat Messages */
+    .stChatMessage {
+        background: var(--card) !important;
+        border: 1px solid var(--paper-line) !important;
+        border-radius: var(--radius) !important;
+        box-shadow: 0 8px 24px -16px rgba(22,28,26,0.12) !important;
+        margin-bottom: 1rem !important;
+        padding: 1rem 1.2rem !important;
+    }
+
+    /* SQL Expander Styling */
+    .streamlit-expanderHeader {
+        font-family: var(--display) !important;
+        font-weight: 600 !important;
+        color: var(--ink) !important;
+        background: var(--card) !important;
+        border: 1px solid var(--paper-line) !important;
+        border-radius: 8px !important;
+    }
+    .stCodeBlock {
+        border-radius: 8px !important;
+        border: 1px solid var(--paper-line) !important;
+    }
+
+    /* Business Insight Callout */
+    .insight-card {
+        background: var(--card);
+        border: 1px solid var(--paper-line);
+        border-left: 4px solid var(--amber);
+        border-radius: var(--radius);
+        padding: 16px 18px;
+        margin-top: 12px;
+        box-shadow: 0 4px 16px -8px rgba(22,28,26,0.1);
+    }
+    .insight-title {
+        font-family: var(--display);
+        font-weight: 600;
+        font-size: 14px;
+        color: var(--amber-ink);
+        margin-bottom: 6px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .insight-body {
+        font-family: var(--sans);
+        font-size: 13.5px;
+        color: var(--ink-soft);
+        line-height: 1.55;
+    }
+
+    /* Sidebar Customization */
+    [data-testid="stSidebar"] {
+        background: #EAECE4 !important;
+        border-right: 1px solid var(--paper-line) !important;
+    }
+    [data-testid="stSidebar"] .stButton button {
+        background: var(--card) !important;
+        color: var(--ink) !important;
+        border: 1px solid var(--paper-line) !important;
+        border-radius: 999px !important;
+        font-size: 12.5px !important;
+        font-weight: 500 !important;
+        text-align: left !important;
+        padding: 6px 14px !important;
+        transition: all .2s ease !important;
+    }
+    [data-testid="stSidebar"] .stButton button:hover {
+        border-color: var(--amber) !important;
+        color: var(--amber-ink) !important;
+        box-shadow: 0 4px 12px -6px rgba(229,160,59,0.3) !important;
+        transform: translateY(-1px) !important;
+    }
+
+    /* Chat Input Bar */
+    [data-testid="stChatInput"] {
+        background: var(--card) !important;
+        border: 1px solid var(--paper-line) !important;
+        border-radius: 999px !important;
+        box-shadow: 0 10px 30px -10px rgba(22,28,26,0.15) !important;
+    }
+    [data-testid="stChatInput"]:focus-within {
+        border-color: var(--amber) !important;
+    }
+
+    /* Hide standard headers */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
@@ -212,9 +338,17 @@ if "messages" not in st.session_state:
 
 # ── Header ──
 st.markdown("""
-<div class="main-header">
-    <h1>🔍 SmartQuery</h1>
-    <p>Ask business questions in plain English — get SQL, charts, and insights instantly</p>
+<div class="hero-wrap">
+    <div class="hero-eyebrow">Natural language → SQL → Answer</div>
+    <div class="hero-title"><span class="hero-dot"></span> SmartQuery</div>
+    <div class="hero-sub">Ask plain-English business questions across your e-commerce database — get verified SQL, interactive Plotly charts, and plain-English executive explanations.</div>
+    <div class="stack-row">
+        <span class="stack-pill">Groq · Qwen 3.6</span>
+        <span class="stack-pill">LangChain SQL Agent</span>
+        <span class="stack-pill">SQLite · Olist 100k</span>
+        <span class="stack-pill">Plotly Visualizations</span>
+        <span class="stack-pill">✓ SELECT only Guardrails</span>
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -268,6 +402,7 @@ for msg in st.session_state.messages:
             st.markdown(msg["content"])
     else:
         with st.chat_message("assistant", avatar="🤖"):
+            st.markdown("""<div class="guard-badge">✓ Guardrails Passed · SELECT Only · 1,000 Row Limit</div>""", unsafe_allow_html=True)
             st.markdown(msg.get("answer", ""))
 
             # Show SQL in expander
@@ -286,7 +421,12 @@ for msg in st.session_state.messages:
 
             # Show explanation
             if msg.get("explanation"):
-                st.info(f"💡 **Business Insight:**\n\n{msg['explanation']}")
+                st.markdown(f"""
+                <div class="insight-card">
+                    <div class="insight-title">💡 Executive Insight</div>
+                    <div class="insight-body">{msg['explanation']}</div>
+                </div>
+                """, unsafe_allow_html=True)
 
 
 # ── Handle Input ──
@@ -335,7 +475,8 @@ if user_input:
                         except Exception:
                             df = run_query_for_chart(db, main_sql)
 
-                    # Display answer
+                    # Display Guardrail Badge & Answer
+                    st.markdown("""<div class="guard-badge">✓ Guardrails Passed · SELECT Only · 1,000 Row Limit</div>""", unsafe_allow_html=True)
                     st.markdown(answer)
 
                     # Show SQL
@@ -367,7 +508,12 @@ if user_input:
                                 user_input, df, sql=main_sql, llm=explain_llm
                             )
                             if explanation:
-                                st.info(f"💡 **Business Insight:**\n\n{explanation}")
+                                st.markdown(f"""
+                                <div class="insight-card">
+                                    <div class="insight-title">💡 Executive Insight</div>
+                                    <div class="insight-body">{explanation}</div>
+                                </div>
+                                """, unsafe_allow_html=True)
                         except Exception:
                             pass  # Explanation is optional, don't break the flow
 
