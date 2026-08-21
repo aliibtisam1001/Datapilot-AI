@@ -121,16 +121,14 @@ def _is_time_like(series: pd.Series, col_name: str) -> bool:
 
 
 VIBRANT_PALETTE = [
-    "#00F0FF",  # Electric Cyan
-    "#EC4899",  # Neon Magenta
-    "#8B5CF6",  # Vivid Violet
+    "#8B5CF6",  # Electric Violet
+    "#E879F9",  # Neon Fuchsia
+    "#D946EF",  # Vivid Magenta
+    "#A855F7",  # Vivid Purple
+    "#F472B6",  # Rose Pink
+    "#C084FC",  # Soft Violet
     "#10B981",  # Emerald Green
     "#F59E0B",  # Amber Orange
-    "#3B82F6",  # Electric Blue
-    "#14B8A6",  # Bright Teal
-    "#F43F5E",  # Rose Coral
-    "#A855F7",  # Purple
-    "#06B6D4",  # Cyan Blue
 ]
 
 
@@ -146,7 +144,7 @@ def _make_metric(value, label: str, title: str = "") -> go.Figure:
         mode="number",
         value=numeric_value,
         number={
-            "font": {"size": 58, "color": "#00F0FF", "family": "Space Grotesk, sans-serif"},
+            "font": {"size": 58, "color": "#8B5CF6", "family": "Space Grotesk, sans-serif"},
             "valueformat": ",.2f" if isinstance(numeric_value, float) and abs(numeric_value) > 1000 else ",g"
         },
         title={
@@ -169,10 +167,10 @@ def _make_metric(value, label: str, title: str = "") -> go.Figure:
 
 
 def _make_multi_metric(df: pd.DataFrame, title: str = "") -> go.Figure:
-    """Create multi-metric cards with distinct neon colors."""
+    """Create multi-metric cards with distinct violet & fuchsia colors."""
     fig = go.Figure()
     n_cols = len(df.columns)
-    colors = ["#00F0FF", "#EC4899", "#10B981", "#F59E0B"]
+    colors = ["#8B5CF6", "#E879F9", "#D946EF", "#F59E0B"]
 
     for i, col in enumerate(df.columns):
         val = df.iloc[0][col]
@@ -216,7 +214,7 @@ def _make_table(df: pd.DataFrame, title: str = "") -> go.Figure:
         header=dict(
             values=[f"<b>{col}</b>" for col in df.columns],
             fill_color='#1E293B',
-            font=dict(color='#00F0FF', size=13, family="Space Grotesk, sans-serif"),
+            font=dict(color='#E879F9', size=13, family="Space Grotesk, sans-serif"),
             align='left',
             height=34,
             line_color='#334155',
@@ -294,8 +292,8 @@ def _style_fig(fig: go.Figure):
             )
             trace.textfont = dict(family="IBM Plex Mono, monospace", size=11, color="#FFFFFF")
         elif trace.type == "scatter":
-            trace.line = dict(color="#00F0FF", width=3, shape="spline")
-            trace.marker = dict(color="#EC4899", size=8, line=dict(color="#FFFFFF", width=2))
+            trace.line = dict(color="#8B5CF6", width=3, shape="spline")
+            trace.marker = dict(color="#E879F9", size=8, line=dict(color="#FFFFFF", width=2))
 
 
 # ============================================================

@@ -1,6 +1,7 @@
 """
 DataPilot AI — Futuristic AI Business Intelligence Command Center.
 Natural language data analyst for executives and business leaders.
+Violet-to-Magenta Futuristic AI Palette.
 """
 import streamlit as st
 import streamlit.components.v1 as components
@@ -24,7 +25,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# ── Global CSS: Futuristic AI Command Center Design System ──
+# ── Global CSS: Futuristic AI Command Center Design System (Violet & Magenta) ──
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
@@ -34,11 +35,11 @@ st.markdown("""
         --bg-surface: #090D1A;
         --bg-glass: rgba(13, 19, 36, 0.75);
         --bg-glass-card: rgba(18, 26, 48, 0.65);
-        --border-glass: rgba(0, 240, 255, 0.15);
+        --border-glass: rgba(139, 92, 246, 0.22);
         --border-subtle: rgba(255, 255, 255, 0.08);
-        --cyan-glow: #00F0FF;
-        --blue-electric: #3B82F6;
-        --violet-glow: #8B5CF6;
+        --violet-primary: #8B5CF6;
+        --fuchsia-secondary: #E879F9;
+        --magenta-vivid: #D946EF;
         --emerald-glow: #10B981;
         --amber-glow: #F59E0B;
         --text-pure: #F8FAFC;
@@ -52,9 +53,9 @@ st.markdown("""
     /* Base Body & Command Canvas */
     .stApp {
         background: 
-            radial-gradient(circle at 10% 10%, rgba(59, 130, 246, 0.12) 0%, transparent 40%),
-            radial-gradient(circle at 90% 15%, rgba(0, 240, 255, 0.10) 0%, transparent 40%),
-            radial-gradient(circle at 50% 90%, rgba(139, 92, 246, 0.12) 0%, transparent 45%),
+            radial-gradient(circle at 10% 10%, rgba(139, 92, 246, 0.14) 0%, transparent 40%),
+            radial-gradient(circle at 90% 15%, rgba(232, 121, 249, 0.12) 0%, transparent 40%),
+            radial-gradient(circle at 50% 90%, rgba(217, 70, 239, 0.14) 0%, transparent 45%),
             #050811 !important;
         background-attachment: fixed !important;
         color: var(--text-pure) !important;
@@ -65,6 +66,19 @@ st.markdown("""
         max-width: 1400px !important;
         padding-top: 1rem !important;
         padding-bottom: 4rem !important;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+        background: #050811;
+    }
+    ::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, #8B5CF6, #E879F9);
+        border-radius: 999px;
     }
 
     /* ── Top Navigation Bar ── */
@@ -89,32 +103,51 @@ st.markdown("""
         width: 38px;
         height: 38px;
         border-radius: 10px;
-        background: linear-gradient(135deg, #00F0FF, #3B82F6, #8B5CF6);
+        background: linear-gradient(135deg, #8B5CF6, #E879F9, #D946EF);
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 20px;
-        box-shadow: 0 0 20px rgba(0, 240, 255, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.5);
+        box-shadow: 0 0 20px rgba(139, 92, 246, 0.5), inset 0 1px 2px rgba(255, 255, 255, 0.5);
         animation: logoPulse 4s infinite ease-in-out;
     }
     @keyframes logoPulse {
-        0%, 100% { box-shadow: 0 0 15px rgba(0, 240, 255, 0.3); }
-        50% { box-shadow: 0 0 25px rgba(0, 240, 255, 0.6), 0 0 10px rgba(139, 92, 246, 0.4); }
+        0%, 100% { box-shadow: 0 0 15px rgba(139, 92, 246, 0.35); }
+        50% { box-shadow: 0 0 28px rgba(232, 121, 249, 0.65), 0 0 10px rgba(139, 92, 246, 0.4); }
     }
     .brand-text {
         font-family: var(--font-title);
         font-size: 22px;
         font-weight: 800;
         letter-spacing: -0.02em;
-        background: linear-gradient(90deg, #FFFFFF, #E2E8F0, #00F0FF);
+        background: linear-gradient(90deg, #FFFFFF, #F1F5F9, #E879F9);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
     }
     .brand-tagline {
         font-family: var(--font-mono);
         font-size: 11px;
-        color: var(--cyan-glow);
+        color: var(--fuchsia-secondary);
         letter-spacing: 0.05em;
+    }
+
+    /* Streamlit Radio Tabs Styling */
+    div[role="radiogroup"] > label {
+        background: rgba(18, 26, 48, 0.75) !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        padding: 6px 14px !important;
+        border-radius: 10px !important;
+        transition: all 0.25s ease !important;
+    }
+    div[role="radiogroup"] > label:hover {
+        border-color: var(--violet-primary) !important;
+        box-shadow: 0 0 12px rgba(139, 92, 246, 0.35) !important;
+    }
+    div[role="radiogroup"] > label[data-checked="true"],
+    div[role="radiogroup"] > label[aria-checked="true"] {
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.25), rgba(232, 121, 249, 0.2)) !important;
+        border-color: var(--violet-primary) !important;
+        box-shadow: 0 0 18px rgba(139, 92, 246, 0.4) !important;
     }
 
     /* Live Database Status Indicator */
@@ -163,7 +196,7 @@ st.markdown("""
         width: 260px;
         height: 260px;
         border-radius: 50%;
-        background: radial-gradient(circle, rgba(0, 240, 255, 0.15), transparent 70%);
+        background: radial-gradient(circle, rgba(139, 92, 246, 0.18), transparent 70%);
         pointer-events: none;
     }
     .hero-headline {
@@ -176,7 +209,7 @@ st.markdown("""
         color: #FFFFFF;
     }
     .hero-headline span {
-        background: linear-gradient(90deg, #00F0FF, #3B82F6, #8B5CF6);
+        background: linear-gradient(90deg, #8B5CF6, #E879F9, #F472B6);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
     }
@@ -211,10 +244,10 @@ st.markdown("""
         white-space: nowrap;
     }
     .pipeline-node.active {
-        color: var(--cyan-glow);
+        color: var(--fuchsia-secondary);
     }
     .pipeline-arrow {
-        color: rgba(255, 255, 255, 0.2);
+        color: rgba(232, 121, 249, 0.4);
         font-size: 12px;
         margin: 0 6px;
     }
@@ -243,7 +276,7 @@ st.markdown("""
         font-weight: 700;
         letter-spacing: 0.04em;
         text-transform: uppercase;
-        color: var(--cyan-glow);
+        color: var(--fuchsia-secondary);
         display: flex;
         align-items: center;
         gap: 8px;
@@ -252,18 +285,18 @@ st.markdown("""
     /* ── AI Processing Sequence ── */
     .processing-stepper {
         background: rgba(5, 8, 17, 0.7);
-        border: 1px solid rgba(0, 240, 255, 0.2);
+        border: 1px solid rgba(139, 92, 246, 0.3);
         border-radius: 12px;
         padding: 14px 16px;
         margin: 12px 0;
         font-family: var(--font-mono);
         font-size: 12px;
-        color: var(--cyan-glow);
+        color: var(--fuchsia-secondary);
         animation: pulseStep 2s infinite ease-in-out;
     }
     @keyframes pulseStep {
-        0%, 100% { border-color: rgba(0, 240, 255, 0.2); }
-        50% { border-color: rgba(0, 240, 255, 0.5); box-shadow: 0 0 15px rgba(0, 240, 255, 0.15); }
+        0%, 100% { border-color: rgba(139, 92, 246, 0.25); }
+        50% { border-color: rgba(232, 121, 249, 0.6); box-shadow: 0 0 18px rgba(139, 92, 246, 0.3); }
     }
 
     /* ── KPI Metric Cards ── */
@@ -283,7 +316,8 @@ st.markdown("""
     }
     .kpi-box:hover {
         transform: translateY(-2px);
-        border-color: var(--cyan-glow);
+        border-color: var(--violet-primary);
+        box-shadow: 0 10px 25px rgba(139, 92, 246, 0.25);
     }
     .kpi-label {
         font-family: var(--font-mono);
@@ -299,7 +333,7 @@ st.markdown("""
         font-weight: 700;
         color: #FFFFFF;
     }
-    .kpi-val.cyan { color: var(--cyan-glow); }
+    .kpi-val.violet { color: var(--fuchsia-secondary); }
     .kpi-val.emerald { color: var(--emerald-glow); }
     .kpi-val.amber { color: var(--amber-glow); }
 
@@ -334,7 +368,56 @@ st.markdown("""
         border-radius: 12px !important;
         font-size: 13px !important;
         font-weight: 500 !important;
+        border: 1px solid rgba(255, 255, 255, 0.10) !important;
+        background: rgba(18, 26, 48, 0.75) !important;
+        color: #E2E8F0 !important;
         transition: all 0.25s ease !important;
+    }
+    .stButton > button:hover {
+        border-color: var(--violet-primary) !important;
+        color: #FFFFFF !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 18px rgba(139, 92, 246, 0.4) !important;
+    }
+
+    /* ── Chat Input ── */
+    [data-testid="stChatInput"] {
+        background: rgba(15, 23, 42, 0.85) !important;
+        backdrop-filter: blur(16px) !important;
+        border: 1px solid rgba(139, 92, 246, 0.35) !important;
+        border-radius: 999px !important;
+        box-shadow: 0 10px 35px -8px rgba(0, 0, 0, 0.7), 0 0 15px rgba(139, 92, 246, 0.15) !important;
+        transition: all 0.3s ease !important;
+    }
+    [data-testid="stChatInput"]:focus-within {
+        border-color: var(--fuchsia-secondary) !important;
+        box-shadow: 0 12px 40px -5px rgba(139, 92, 246, 0.45), 0 0 25px rgba(232, 121, 249, 0.35) !important;
+        transform: translateY(-2px) !important;
+    }
+
+    /* ── Code Expander ── */
+    .stCodeBlock {
+        border-radius: 12px !important;
+        border: 1px solid rgba(139, 92, 246, 0.3) !important;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 15px rgba(139, 92, 246, 0.15) !important;
+        background: #060913 !important;
+    }
+    .streamlit-expanderHeader {
+        background: rgba(15, 23, 42, 0.9) !important;
+        border: 1px solid rgba(255, 255, 255, 0.10) !important;
+        border-radius: 10px !important;
+        font-family: var(--font-title) !important;
+        font-weight: 600 !important;
+        color: var(--fuchsia-secondary) !important;
+    }
+
+    /* Reduced Motion */
+    @media (prefers-reduced-motion: reduce) {
+        *, ::before, ::after {
+            animation-duration: 0.001s !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.001s !important;
+        }
     }
 
     /* Clean Streamlit Default Chrome */
@@ -345,9 +428,9 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# ── AI Brain & 3D Core Visualization Component ──
+# ── AI Brain & 3D Core Visualization Component (Violet / Fuchsia) ──
 def render_ai_brain_orb():
-    """Renders an interactive Three.js 3D AI Brain Data Core with floating nodes and synaptic connections."""
+    """Renders an interactive Three.js 3D AI Brain Data Core with floating nodes and violet/fuchsia synaptic lights."""
     three_html = """
     <!DOCTYPE html>
     <html>
@@ -376,9 +459,9 @@ def render_ai_brain_orb():
             
             const knotGeo = new THREE.TorusKnotGeometry(1.0, 0.28, 64, 16);
             const knotMat = new THREE.MeshStandardMaterial({
-                color: 0x00F0FF,
+                color: 0x8B5CF6,
                 wireframe: true,
-                emissive: 0x003366,
+                emissive: 0x4C1D95,
                 roughness: 0.2
             });
             const knot = new THREE.Mesh(knotGeo, knotMat);
@@ -394,7 +477,7 @@ def render_ai_brain_orb():
             particleGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
             const particleMat = new THREE.PointsMaterial({
                 size: 0.08,
-                color: 0x8B5CF6,
+                color: 0xE879F9,
                 transparent: true,
                 opacity: 0.85
             });
@@ -403,14 +486,14 @@ def render_ai_brain_orb():
 
             scene.add(coreGroup);
 
-            // Dual Neon Accent Lights
-            const cyanLight = new THREE.PointLight(0x00F0FF, 3, 30);
-            cyanLight.position.set(4, 3, 4);
-            scene.add(cyanLight);
+            // Dual Neon Accent Lights (Electric Violet + Neon Fuchsia)
+            const violetLight = new THREE.PointLight(0x8B5CF6, 3, 30);
+            violetLight.position.set(4, 3, 4);
+            scene.add(violetLight);
 
-            const magentaLight = new THREE.PointLight(0x8B5CF6, 3, 30);
-            magentaLight.position.set(-4, -3, 4);
-            scene.add(magentaLight);
+            const fuchsiaLight = new THREE.PointLight(0xE879F9, 3, 30);
+            fuchsiaLight.position.set(-4, -3, 4);
+            scene.add(fuchsiaLight);
 
             const ambientLight = new THREE.AmbientLight(0x111827, 2.0);
             scene.add(ambientLight);
@@ -482,7 +565,6 @@ from app.prompts import build_system_prompt
 from app.explain import explain_result
 from app.charts import auto_chart
 from app.guardrails import validate_sql
-
 
 MODELS_PRIORITY = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27b"]
 
@@ -699,7 +781,7 @@ if "Analyst" in st.session_state.current_nav:
         <div class="workspace-panel">
             <div class="panel-header">
                 <div class="panel-title">📈 Dynamic Analytics & Insights</div>
-                <div style="font-family: var(--font-mono); font-size: 11px; color: #00F0FF;">⚡ Real-time Stream</div>
+                <div style="font-family: var(--font-mono); font-size: 11px; color: #E879F9;">⚡ Real-time Stream</div>
             </div>
         """, unsafe_allow_html=True)
 
@@ -863,7 +945,7 @@ elif "Dashboard" in st.session_state.current_nav:
         st.markdown("""
         <div class="kpi-box">
             <div class="kpi-label">💰 Total Delivered Revenue</div>
-            <div class="kpi-val cyan">R$ 13.22M</div>
+            <div class="kpi-val violet">R$ 13.22M</div>
             <div style="font-size: 11.5px; color: #10B981; margin-top: 4px;">↑ +14.2% YoY growth</div>
         </div>
         """, unsafe_allow_html=True)
@@ -887,7 +969,7 @@ elif "Dashboard" in st.session_state.current_nav:
         st.markdown("""
         <div class="kpi-box">
             <div class="kpi-label">🚚 Avg Delivery Speed</div>
-            <div class="kpi-val cyan">12.5 Days</div>
+            <div class="kpi-val violet">12.5 Days</div>
             <div style="font-size: 11.5px; color: #10B981; margin-top: 4px;">↓ 1.4 days faster</div>
         </div>
         """, unsafe_allow_html=True)
@@ -911,7 +993,7 @@ elif "Dashboard" in st.session_state.current_nav:
             margin=dict(l=20, r=20, t=30, b=20),
             height=300
         )
-        fig_trend.update_traces(line=dict(color="#00F0FF", width=3), marker=dict(size=8, color="#EC4899"))
+        fig_trend.update_traces(line=dict(color="#8B5CF6", width=3), marker=dict(size=8, color="#E879F9"))
         st.plotly_chart(fig_trend, use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -929,7 +1011,7 @@ elif "Dashboard" in st.session_state.current_nav:
             margin=dict(l=20, r=20, t=30, b=20),
             height=300
         )
-        fig_cat.update_traces(marker_color=["#00F0FF", "#3B82F6", "#8B5CF6", "#10B981", "#F59E0B"])
+        fig_cat.update_traces(marker_color=["#8B5CF6", "#E879F9", "#D946EF", "#A855F7", "#F472B6"])
         st.plotly_chart(fig_cat, use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -983,7 +1065,7 @@ elif "Sources" in st.session_state.current_nav:
             st.markdown(f"""
             <div class="kpi-box" style="margin-bottom: 12px;">
                 <div style="display: flex; align-items: center; justify-content: space-between;">
-                    <div style="font-family: var(--font-title); font-weight: 700; color: #00F0FF; font-size: 15px;">📁 {tname}</div>
+                    <div style="font-family: var(--font-title); font-weight: 700; color: #E879F9; font-size: 15px;">📁 {tname}</div>
                     <div style="font-family: var(--font-mono); font-size: 11px; color: #10B981;">{trows}</div>
                 </div>
                 <div style="font-family: var(--font-mono); font-size: 11px; color: #94A3B8; margin-top: 6px; line-height: 1.4;">{tcols}</div>
@@ -1033,8 +1115,8 @@ elif "Insights" in st.session_state.current_nav:
         <div class="insight-text">The <strong>Health & Beauty</strong> category generated <strong>R$ 1.26M</strong> in total sales, representing the highest individual revenue contributor. Watches & Gifts followed closely at <strong>R$ 1.21M</strong>. Combining cross-sell promotions between these two categories could unlock an estimated +8.5% incremental margin.</div>
     </div>
 
-    <div class="insight-card-executive" style="border-left-color: #00F0FF; border-color: rgba(0, 240, 255, 0.35);">
-        <div class="insight-headline" style="color: #00F0FF;">⚡ LOGISTICS OPTIMIZATION: Regional Delivery Disparity</div>
+    <div class="insight-card-executive" style="border-left-color: #8B5CF6; border-color: rgba(139, 92, 246, 0.35);">
+        <div class="insight-headline" style="color: #E879F9;">⚡ LOGISTICS OPTIMIZATION: Regional Delivery Disparity</div>
         <div class="insight-text">Orders shipped to São Paulo (SP) average <strong>8.3 days</strong> delivery time, whereas orders shipped to Northeastern states (e.g. BA, PE, CE) average <strong>17.6 days</strong>. Establishing localized fulfillment hubs in the Northeast would reduce transit times by up to 40%.</div>
     </div>
 
