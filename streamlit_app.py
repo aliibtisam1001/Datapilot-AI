@@ -484,8 +484,11 @@ from app.charts import auto_chart
 from app.guardrails import validate_sql
 
 
+MODELS_PRIORITY = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27b"]
+
+
 @st.cache_resource
-def init_agent(api_key: str):
+def init_agent(api_key: str, model_name: str = "openai/gpt-oss-120b"):
     """Initialize LangChain SQL Agent with Groq LLM."""
     from langchain_groq import ChatGroq
     from langchain_community.agent_toolkits import create_sql_agent
@@ -496,7 +499,7 @@ def init_agent(api_key: str):
     db = SQLDatabase.from_uri(f"sqlite:///{db_path}")
 
     llm = ChatGroq(
-        model="qwen/qwen3.6-27b",
+        model=model_name,
         temperature=0.0,
         api_key=api_key,
     )
@@ -516,11 +519,11 @@ def init_agent(api_key: str):
 
 
 @st.cache_resource
-def init_explain_llm(api_key: str):
+def init_explain_llm(api_key: str, model_name: str = "openai/gpt-oss-120b"):
     """Initialize separate LLM instance for executive business insights."""
     from langchain_groq import ChatGroq
     return ChatGroq(
-        model="qwen/qwen3.6-27b",
+        model=model_name,
         temperature=0.3,
         api_key=api_key,
     )
@@ -710,64 +713,80 @@ if "Analyst" in st.session_state.current_nav:
                 st.session_state.messages.append({"role": "user", "content": user_input})
                 st.session_state.latest_question = user_input
 
-                agent, db, llm = init_agent(groq_key)
-                explain_llm = init_explain_llm(groq_key)
-
-                # Show Step-by-Step Processing Stepper
+                # Execute with automatic multi-model fallback
                 with st.spinner("🤖 Synthesizing query & executing on live database..."):
-                    try:
-                        callback_handler = SQLCaptureCallbackHandler()
-                        result = agent.invoke(
-                            {"input": user_input},
-                            config={"callbacks": [callback_handler]}
-                        )
-                        answer = strip_thinking(result.get("output", "No response generated."))
+                    execution_success = False
+                    last_err = ""
 
-                        # Extract SQL
-                        main_sql = None
-                        if callback_handler.sql_queries:
-                            main_sql = callback_handler.sql_queries[-1]
+                    for model_candidate in MODELS_PRIORITY:
+                        try:
+                            agent, db, llm = init_agent(groq_key, model_name=model_candidate)
+                            explain_llm = init_explain_llm(groq_key, model_name=model_candidate)
 
-                        df = pd.DataFrame()
-                        if main_sql:
-                            try:
-                                validated_sql = validate_sql(main_sql)
-                                df = run_query_for_chart(db, validated_sql)
-                            except Exception:
-                                df = run_query_for_chart(db, main_sql)
+                            callback_handler = SQLCaptureCallbackHandler()
+                            result = agent.invoke(
+                                {"input": user_input},
+                                config={"callbacks": [callback_handler]}
+                            )
+                            answer = strip_thinking(result.get("output", "No response generated."))
 
-                        chart_fig = None
-                        if not df.empty:
-                            try:
-                                chart_fig = auto_chart(df, user_input)
-                            except Exception:
-                                pass
+                            # Extract SQL
+                            main_sql = None
+                            if callback_handler.sql_queries:
+                                main_sql = callback_handler.sql_queries[-1]
 
-                        explanation = None
-                        if not df.empty:
-                            try:
-                                time.sleep(1)
-                                explanation = explain_result(user_input, df, sql=main_sql, llm=explain_llm)
-                            except Exception:
-                                pass
+                            df = pd.DataFrame()
+                            if main_sql:
+                                try:
+                                    validated_sql = validate_sql(main_sql)
+                                    df = run_query_for_chart(db, validated_sql)
+                                except Exception:
+                                    df = run_query_for_chart(db, main_sql)
 
-                        # Save latest analytics state
-                        st.session_state.latest_df = df
-                        st.session_state.latest_sql = main_sql
-                        st.session_state.latest_chart = chart_fig
-                        st.session_state.latest_insight = explanation
+                            chart_fig = None
+                            if not df.empty:
+                                try:
+                                    chart_fig = auto_chart(df, user_input)
+                                except Exception:
+                                    pass
 
-                        st.session_state.messages.append({
-                            "role": "assistant",
-                            "answer": answer,
-                            "sql": main_sql,
-                            "df": df,
-                            "chart": chart_fig,
-                            "explanation": explanation,
-                        })
+                            explanation = None
+                            if not df.empty:
+                                try:
+                                    time.sleep(1)
+                                    explanation = explain_result(user_input, df, sql=main_sql, llm=explain_llm)
+                                except Exception:
+                                    pass
 
-                    except Exception as e:
-                        st.error(f"❌ Query execution note: {e}")
+                            # Save latest analytics state
+                            st.session_state.latest_df = df
+                            st.session_state.latest_sql = main_sql
+                            st.session_state.latest_chart = chart_fig
+                            st.session_state.latest_insight = explanation
+
+                            st.session_state.messages.append({
+                                "role": "assistant",
+                                "answer": answer,
+                                "sql": main_sql,
+                                "df": df,
+                                "chart": chart_fig,
+                                "explanation": explanation,
+                            })
+                            execution_success = True
+                            break
+
+                        except Exception as e:
+                            last_err = str(e)
+                            if "429" in last_err or "rate_limit" in last_err.lower():
+                                continue  # Fallback to next model candidate
+                            else:
+                                break
+
+                    if not execution_success:
+                        if "429" in last_err or "rate_limit" in last_err.lower():
+                            st.warning("⏳ Daily token quota temporarily reached across all free-tier models. Please retry in a few moments or enter a custom Groq API key in Settings.")
+                        else:
+                            st.error(f"❌ Query execution note: {last_err}")
 
         # Render Latest Dynamic Analytics Content
         if not st.session_state.latest_df.empty or st.session_state.latest_chart:
