@@ -114,24 +114,53 @@ st.markdown("""
 from app.utils import strip_thinking, clean_sql_input, SQLCaptureCallbackHandler
 
 
+def get_groq_api_key():
+    """Retrieve Groq API key from environment, Streamlit secrets, or session state."""
+    key = os.getenv("GROQ_API_KEY")
+    if not key:
+        try:
+            key = st.secrets.get("GROQ_API_KEY", "")
+        except Exception:
+            key = ""
+    if not key and "user_groq_api_key" in st.session_state:
+        key = st.session_state.user_groq_api_key
+    return key
+
+
+def ensure_database_exists():
+    """Check if SQLite database exists; if not, attempt to build it from CSVs."""
+    db_path = os.path.join(os.path.dirname(__file__), 'data', 'olist.db')
+    if not os.path.exists(db_path):
+        csv_dir = os.path.join(os.path.dirname(__file__), 'data')
+        csv_files = [f for f in os.listdir(csv_dir) if f.endswith('.csv')] if os.path.exists(csv_dir) else []
+        if csv_files:
+            with st.spinner("📦 Initializing database from CSV files (first-time setup)..."):
+                try:
+                    from app.load_data import create_sqlite_database
+                    create_sqlite_database()
+                except Exception as e:
+                    st.error(f"Error initializing database: {e}")
+    return os.path.abspath(db_path)
+
+
 @st.cache_resource
-def init_agent():
-    """Initialize the SQL agent (cached so it's only created once)."""
+def init_agent(api_key: str):
+    """Initialize the SQL agent (cached per API key)."""
     from langchain_groq import ChatGroq
     from langchain_community.utilities import SQLDatabase
     from langchain_community.agent_toolkits import create_sql_agent, SQLDatabaseToolkit
     from app.prompts import build_system_prompt
 
-    DB_PATH = os.path.join(os.path.dirname(__file__), 'data', 'olist.db')
-    DB_URI = f"sqlite:///{os.path.abspath(DB_PATH)}"
+    db_path = ensure_database_exists()
+    db_uri = f"sqlite:///{db_path}"
 
     llm = ChatGroq(
         model="qwen/qwen3.6-27b",
         temperature=0,
-        api_key=os.getenv("GROQ_API_KEY"),
+        api_key=api_key,
     )
 
-    db = SQLDatabase.from_uri(DB_URI)
+    db = SQLDatabase.from_uri(db_uri)
     toolkit = SQLDatabaseToolkit(db=db, llm=llm)
 
     agent = create_sql_agent(
@@ -148,13 +177,13 @@ def init_agent():
 
 
 @st.cache_resource
-def init_explain_llm():
+def init_explain_llm(api_key: str):
     """Initialize a separate LLM instance for explanations."""
     from langchain_groq import ChatGroq
     return ChatGroq(
         model="qwen/qwen3.6-27b",
         temperature=0.3,
-        api_key=os.getenv("GROQ_API_KEY"),
+        api_key=api_key,
     )
 
 
@@ -171,10 +200,6 @@ def run_query_for_chart(db, sql):
     except Exception:
         return pd.DataFrame()
 
-
-# ── Initialize ──
-agent, db, llm = init_agent()
-explain_llm = init_explain_llm()
 
 # Import our custom modules
 from app.explain import explain_result
@@ -193,8 +218,18 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# ── Sidebar ──
+# ── API Key Resolution ──
+groq_key = get_groq_api_key()
+
 with st.sidebar:
+    if not groq_key:
+        st.warning("⚠️ No Groq API Key found.")
+        user_key = st.text_input("🔑 Enter your Groq API Key:", type="password", placeholder="gsk_...")
+        if user_key:
+            st.session_state.user_groq_api_key = user_key
+            st.rerun()
+        st.info("Get a free key at [console.groq.com](https://console.groq.com).")
+
     st.markdown("### 💡 Example Questions")
     example_questions = [
         "What is the total revenue from delivered orders?",
@@ -263,26 +298,33 @@ else:
     user_input = st.chat_input("Ask a business question about the Olist e-commerce data...")
 
 if user_input:
-    # Add user message
-    st.session_state.messages.append({"role": "user", "content": user_input})
-    with st.chat_message("user", avatar="🧑‍💼"):
-        st.markdown(user_input)
+    if not groq_key:
+        st.error("🔑 Please enter a Groq API Key in the sidebar to run queries.")
+    else:
+        # Add user message
+        st.session_state.messages.append({"role": "user", "content": user_input})
+        with st.chat_message("user", avatar="🧑‍💼"):
+            st.markdown(user_input)
 
-    # Process with agent
-    with st.chat_message("assistant", avatar="🤖"):
-        with st.spinner("🔄 Querying the database..."):
-            try:
-                callback_handler = SQLCaptureCallbackHandler()
-                result = agent.invoke(
-                    {"input": user_input},
-                    config={"callbacks": [callback_handler]}
-                )
-                answer = strip_thinking(result.get("output", "No answer generated."))
+        # Initialize agent with key
+        agent, db, llm = init_agent(groq_key)
+        explain_llm = init_explain_llm(groq_key)
 
-                # Extract SQL from callback or steps
-                main_sql = None
-                if callback_handler.sql_queries:
-                    main_sql = callback_handler.sql_queries[-1]
+        # Process with agent
+        with st.chat_message("assistant", avatar="🤖"):
+            with st.spinner("🔄 Querying the database..."):
+                try:
+                    callback_handler = SQLCaptureCallbackHandler()
+                    result = agent.invoke(
+                        {"input": user_input},
+                        config={"callbacks": [callback_handler]}
+                    )
+                    answer = strip_thinking(result.get("output", "No answer generated."))
+
+                    # Extract SQL from callback or steps
+                    main_sql = None
+                    if callback_handler.sql_queries:
+                        main_sql = callback_handler.sql_queries[-1]
                 
                 # If sql is found, sanitize & validate through guardrails
                 df = pd.DataFrame()
