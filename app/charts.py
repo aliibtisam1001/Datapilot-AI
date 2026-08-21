@@ -120,8 +120,22 @@ def _is_time_like(series: pd.Series, col_name: str) -> bool:
     return False
 
 
+VIBRANT_PALETTE = [
+    "#00F0FF",  # Electric Cyan
+    "#EC4899",  # Neon Magenta
+    "#8B5CF6",  # Vivid Violet
+    "#10B981",  # Emerald Green
+    "#F59E0B",  # Amber Orange
+    "#3B82F6",  # Electric Blue
+    "#14B8A6",  # Bright Teal
+    "#F43F5E",  # Rose Coral
+    "#A855F7",  # Purple
+    "#06B6D4",  # Cyan Blue
+]
+
+
 def _make_metric(value, label: str, title: str = "") -> go.Figure:
-    """Create a big number indicator for a single value."""
+    """Create a futuristic glowing 3D glass metric card."""
     try:
         numeric_value = float(value)
     except (TypeError, ValueError):
@@ -131,23 +145,34 @@ def _make_metric(value, label: str, title: str = "") -> go.Figure:
     fig.add_trace(go.Indicator(
         mode="number",
         value=numeric_value,
-        number={"font": {"size": 56, "color": "#161C1A", "family": "Space Grotesk, sans-serif"}},
-        title={"text": label, "font": {"size": 15, "color": "#54605B", "family": "IBM Plex Mono, monospace"}},
+        number={
+            "font": {"size": 58, "color": "#00F0FF", "family": "Space Grotesk, sans-serif"},
+            "valueformat": ",.2f" if isinstance(numeric_value, float) and abs(numeric_value) > 1000 else ",g"
+        },
+        title={
+            "text": f"<span style='font-size:15px; color:#94A3B8; font-weight:600; text-transform:uppercase; letter-spacing:0.08em;'>{label}</span>",
+            "font": {"family": "IBM Plex Mono, monospace"}
+        },
     ))
     fig.update_layout(
-        title=dict(text=title, font=dict(size=15, color="#161C1A", family="Space Grotesk, sans-serif")),
-        paper_bgcolor="#FFFFFF",
-        plot_bgcolor="#FFFFFF",
+        title=dict(
+            text=f"<span style='color:#F8FAFC; font-weight:700;'>{title}</span>" if title else "",
+            font=dict(size=16, family="Space Grotesk, sans-serif")
+        ),
+        paper_bgcolor="rgba(15, 23, 42, 0.75)",
+        plot_bgcolor="rgba(15, 23, 42, 0.75)",
         height=240,
-        margin=dict(l=20, r=20, t=40, b=20),
+        margin=dict(l=20, r=20, t=45, b=20),
+        transition=dict(duration=600, easing="cubic-in-out"),
     )
     return fig
 
 
 def _make_multi_metric(df: pd.DataFrame, title: str = "") -> go.Figure:
-    """Create metric cards for a single-row DataFrame with multiple columns."""
+    """Create multi-metric cards with distinct neon colors."""
     fig = go.Figure()
     n_cols = len(df.columns)
+    colors = ["#00F0FF", "#EC4899", "#10B981", "#F59E0B"]
 
     for i, col in enumerate(df.columns):
         val = df.iloc[0][col]
@@ -155,48 +180,64 @@ def _make_multi_metric(df: pd.DataFrame, title: str = "") -> go.Figure:
             numeric_val = float(val)
         except (TypeError, ValueError):
             numeric_val = None
+        
+        color = colors[i % len(colors)]
         fig.add_trace(go.Indicator(
             mode="number",
             value=numeric_val,
-            number={"font": {"size": 38, "color": "#161C1A", "family": "Space Grotesk, sans-serif"}},
-            title={"text": col, "font": {"size": 13, "color": "#54605B", "family": "IBM Plex Mono, monospace"}},
+            number={
+                "font": {"size": 40, "color": color, "family": "Space Grotesk, sans-serif"},
+                "valueformat": ",.2f" if isinstance(numeric_val, float) and abs(numeric_val) > 1000 else ",g"
+            },
+            title={
+                "text": f"<span style='font-size:13px; color:#94A3B8; font-weight:600; text-transform:uppercase;'>{col}</span>",
+                "font": {"family": "IBM Plex Mono, monospace"}
+            },
             domain={'x': [i / n_cols, (i + 1) / n_cols], 'y': [0, 1]},
         ))
 
     fig.update_layout(
-        title=dict(text=title, font=dict(size=15, color="#161C1A", family="Space Grotesk, sans-serif")),
-        paper_bgcolor="#FFFFFF",
-        plot_bgcolor="#FFFFFF",
+        title=dict(
+            text=f"<span style='color:#F8FAFC; font-weight:700;'>{title}</span>" if title else "",
+            font=dict(size=16, family="Space Grotesk, sans-serif")
+        ),
+        paper_bgcolor="rgba(15, 23, 42, 0.75)",
+        plot_bgcolor="rgba(15, 23, 42, 0.75)",
         height=220,
-        margin=dict(l=20, r=20, t=40, b=20),
+        margin=dict(l=20, r=20, t=45, b=20),
+        transition=dict(duration=600, easing="cubic-in-out"),
     )
     return fig
 
 
 def _make_table(df: pd.DataFrame, title: str = "") -> go.Figure:
-    """Create a styled Plotly table for complex data."""
+    """Create a styled neon-accented glass table for complex data."""
     fig = go.Figure(data=[go.Table(
         header=dict(
-            values=list(df.columns),
-            fill_color='#161C1A',
-            font=dict(color='#F2F3ED', size=12, family="Space Grotesk, sans-serif"),
+            values=[f"<b>{col}</b>" for col in df.columns],
+            fill_color='#1E293B',
+            font=dict(color='#00F0FF', size=13, family="Space Grotesk, sans-serif"),
             align='left',
-            height=30,
+            height=34,
+            line_color='#334155',
         ),
         cells=dict(
             values=[df[col] for col in df.columns],
-            fill_color='#FFFFFF',
-            font=dict(color='#161C1A', size=12, family="IBM Plex Mono, monospace"),
+            fill_color='rgba(15, 23, 42, 0.85)',
+            font=dict(color='#F1F5F9', size=12, family="IBM Plex Mono, monospace"),
             align='left',
-            height=26,
-            line_color='#E1E4D9',
+            height=28,
+            line_color='#1E293B',
         ),
     )])
     fig.update_layout(
-        title=dict(text=title, font=dict(size=15, color='#161C1A', family="Space Grotesk, sans-serif")),
-        paper_bgcolor="#FFFFFF",
-        margin=dict(l=10, r=10, t=35, b=10),
-        height=min(380, 60 + 30 * len(df)),
+        title=dict(
+            text=f"<span style='color:#F8FAFC; font-weight:700;'>{title}</span>" if title else "",
+            font=dict(size=16, family="Space Grotesk, sans-serif")
+        ),
+        paper_bgcolor="rgba(15, 23, 42, 0.75)",
+        margin=dict(l=10, r=10, t=45, b=10),
+        height=min(400, 60 + 32 * len(df)),
     )
     return fig
 
@@ -207,10 +248,10 @@ def _make_empty_fig(message: str) -> go.Figure:
     fig.add_annotation(
         text=message, xref="paper", yref="paper",
         x=0.5, y=0.5, showarrow=False,
-        font=dict(size=16, color="#54605B", family="IBM Plex Sans, sans-serif"),
+        font=dict(size=16, color="#64748B", family="IBM Plex Sans, sans-serif"),
     )
     fig.update_layout(
-        paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
+        paper_bgcolor="rgba(15, 23, 42, 0.75)", plot_bgcolor="rgba(15, 23, 42, 0.75)",
         xaxis=dict(visible=False), yaxis=dict(visible=False),
         height=180,
     )
@@ -218,36 +259,43 @@ def _make_empty_fig(message: str) -> go.Figure:
 
 
 def _style_fig(fig: go.Figure):
-    """Apply consistent editorial paper & amber/teal theme styling."""
+    """Apply consistent high-contrast 3D glowing glassmorphism theme styling."""
     fig.update_layout(
-        paper_bgcolor="#FFFFFF",
-        plot_bgcolor="#FAFAF7",
-        font=dict(color="#161C1A", family="IBM Plex Sans, sans-serif"),
-        title_font=dict(size=15, color="#161C1A", family="Space Grotesk, sans-serif"),
-        margin=dict(l=40, r=30, t=50, b=40),
+        paper_bgcolor="rgba(15, 23, 42, 0.85)",
+        plot_bgcolor="rgba(11, 17, 33, 0.6)",
+        font=dict(color="#F1F5F9", family="IBM Plex Sans, sans-serif"),
+        title_font=dict(size=16, color="#F8FAFC", family="Space Grotesk, sans-serif"),
+        margin=dict(l=45, r=30, t=55, b=45),
+        transition=dict(duration=700, easing="cubic-in-out"),
         xaxis=dict(
-            gridcolor="#E1E4D9",
-            linecolor="#E1E4D9",
-            tickfont=dict(family="IBM Plex Mono, monospace", size=11, color="#54605B"),
+            gridcolor="rgba(51, 65, 85, 0.4)",
+            linecolor="rgba(71, 85, 105, 0.6)",
+            tickfont=dict(family="IBM Plex Mono, monospace", size=11, color="#94A3B8"),
+            showgrid=True,
         ),
         yaxis=dict(
-            gridcolor="#E1E4D9",
-            linecolor="#E1E4D9",
-            tickfont=dict(family="IBM Plex Mono, monospace", size=11, color="#54605B"),
+            gridcolor="rgba(51, 65, 85, 0.4)",
+            linecolor="rgba(71, 85, 105, 0.6)",
+            tickfont=dict(family="IBM Plex Mono, monospace", size=11, color="#94A3B8"),
+            showgrid=True,
         ),
     )
-    fig.update_traces(
-        marker=dict(
-            color="#E5A03B",
-            line=dict(color="#5C3D0E", width=1),
-        ),
-        selector=dict(type="bar"),
-    )
-    fig.update_traces(
-        line=dict(color="#1E6F5C", width=2.5),
-        marker=dict(color="#E5A03B", size=7, line=dict(color="#1E6F5C", width=1.5)),
-        selector=dict(type="scatter"),
-    )
+
+    # Style bar traces with colorful palette
+    for i, trace in enumerate(fig.data):
+        if trace.type == "bar":
+            # If multiple bars in a single trace, apply distinct colors per bar
+            n_bars = len(trace.x) if trace.x is not None else 1
+            bar_colors = [VIBRANT_PALETTE[j % len(VIBRANT_PALETTE)] for j in range(n_bars)]
+            trace.marker = dict(
+                color=bar_colors if n_bars > 1 else VIBRANT_PALETTE[i % len(VIBRANT_PALETTE)],
+                line=dict(color="rgba(255,255,255,0.25)", width=1.5),
+                cornerradius=6,
+            )
+            trace.textfont = dict(family="IBM Plex Mono, monospace", size=11, color="#FFFFFF")
+        elif trace.type == "scatter":
+            trace.line = dict(color="#00F0FF", width=3, shape="spline")
+            trace.marker = dict(color="#EC4899", size=8, line=dict(color="#FFFFFF", width=2))
 
 
 # ============================================================
