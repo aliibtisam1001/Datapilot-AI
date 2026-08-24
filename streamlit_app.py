@@ -532,22 +532,33 @@ def render_ai_brain_orb():
 
 # ── Backend Agents & DB Loaders ──
 def get_groq_api_key():
-    """Retrieve Groq API key with multi-tier resolution."""
+    """Retrieve Groq API key with multi-tier resolution (Session State, Env, Streamlit Secrets)."""
+    # 1. User manual input in session state
     if "user_groq_api_key" in st.session_state and st.session_state.user_groq_api_key:
-        return st.session_state.user_groq_api_key
-    env_key = os.getenv("GROQ_API_KEY")
+        return str(st.session_state.user_groq_api_key).strip()
+    
+    # 2. Local/System Environment variables
+    env_key = os.getenv("GROQ_API_KEY") or os.environ.get("GROQ_API_KEY")
     if env_key:
-        return env_key
+        return str(env_key).strip()
+    
+    # 3. Streamlit Cloud Secrets (handles direct key, lowercase, and nested dicts)
     try:
-        if "GROQ_API_KEY" in st.secrets:
-            return st.secrets["GROQ_API_KEY"]
+        if hasattr(st, "secrets"):
+            if "GROQ_API_KEY" in st.secrets:
+                return str(st.secrets["GROQ_API_KEY"]).strip()
+            if "groq_api_key" in st.secrets:
+                return str(st.secrets["groq_api_key"]).strip()
+            if "GROQ" in st.secrets and isinstance(st.secrets["GROQ"], dict):
+                return str(st.secrets["GROQ"].get("api_key", "")).strip()
     except Exception:
         pass
+        
     return None
 
 
 def ensure_database_exists():
-    """Check if data/olist.db exists. If missing, auto-build from CSVs."""
+    """Check if data/olist.db exists. If missing, auto-build from zip/CSVs."""
     db_path = os.path.join(os.path.dirname(__file__), "data", "olist.db")
     if not os.path.exists(db_path):
         with st.spinner("📦 Initializing live database (100k+ records)..."):
@@ -642,6 +653,8 @@ if "latest_insight" not in st.session_state:
     st.session_state.latest_insight = ""
 if "latest_question" not in st.session_state:
     st.session_state.latest_question = ""
+if "user_groq_api_key" not in st.session_state:
+    st.session_state.user_groq_api_key = ""
 
 
 # ── Top Navigation Bar Header ──
@@ -660,7 +673,7 @@ with nav_col1:
 
 with nav_col2:
     # Top Tab Navigation Bar
-    nav_tabs = ["🤖 AI Analyst", "📊 Dashboard", "🗄️ Data Sources", "📜 Query History", "💡 Insights"]
+    nav_tabs = ["🤖 AI Analyst", "📊 Dashboard", "🗄️ Data Sources", "📜 Query History", "💡 Insights", "⚙️ Settings"]
     selected_tab = st.radio("Navigation", nav_tabs, horizontal=True, label_visibility="collapsed")
     st.session_state.current_nav = selected_tab.split(" ")[-1]
 
@@ -709,6 +722,29 @@ if "Analyst" in st.session_state.current_nav:
     """, unsafe_allow_html=True)
 
     st.markdown("<div style='margin-bottom: 1.4rem;'></div>", unsafe_allow_html=True)
+
+    # ── API Key Banner if Missing ──
+    current_key = get_groq_api_key()
+    if not current_key:
+        st.markdown("""
+        <div class="insight-card-executive" style="border-left-color: #8B5CF6; border-color: rgba(139, 92, 246, 0.45); margin-bottom: 1.2rem;">
+            <div class="insight-headline" style="color: #E879F9;">🔑 Groq API Key Required</div>
+            <div class="insight-text">
+                To execute natural language queries against the live database in real-time, please enter your Groq API key below.
+                <br><span style="color: #94A3B8; font-size: 12px;">Get a free API key instantly at <a href="https://console.groq.com" target="_blank" style="color: #E879F9; text-decoration: underline;">console.groq.com</a></span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        with st.form("inline_api_key_form"):
+            ak_col1, ak_col2 = st.columns([4, 1.2])
+            with ak_col1:
+                entered_k = st.text_input("Groq API Key (gsk_...)", type="password", placeholder="gsk_...", label_visibility="collapsed")
+            with ak_col2:
+                sub_k = st.form_submit_button("⚡ Connect Key", use_container_width=True)
+            if sub_k and entered_k:
+                st.session_state.user_groq_api_key = entered_k.strip()
+                st.success("✅ Connected successfully! You can now run queries.")
+                st.rerun()
 
     # ── Quick Launch Suggestion Pills ──
     st.markdown("<p style='font-size:12px; font-weight:600; color:#94A3B8; text-transform:uppercase; letter-spacing:0.08em; margin: 0 0 8px 0;'>⚡ Suggested Executive Queries:</p>", unsafe_allow_html=True)
@@ -789,7 +825,7 @@ if "Analyst" in st.session_state.current_nav:
         groq_key = get_groq_api_key()
         if user_input:
             if not groq_key:
-                st.error("🔑 Please provide a Groq API key in Settings/Sidebar to run real-time queries.")
+                st.error("🔑 Groq API key missing. Please enter your Groq API key above or in the ⚙️ Settings tab.")
             else:
                 # Add user message
                 st.session_state.messages.append({"role": "user", "content": user_input})
@@ -868,7 +904,7 @@ if "Analyst" in st.session_state.current_nav:
                         if "429" in last_err or "rate_limit" in last_err.lower():
                             st.warning("⏳ Daily token quota temporarily reached across all free-tier models. Please retry in a few moments or enter a custom Groq API key in Settings.")
                         else:
-                            st.error(f"❌ Query execution note: {last_err}")
+                            st.error(f"❌ Query execution error: {last_err}")
 
         # Render Latest Dynamic Analytics Content
         if not st.session_state.latest_df.empty or st.session_state.latest_chart:
@@ -1125,3 +1161,49 @@ elif "Insights" in st.session_state.current_nav:
         <div class="insight-text">Credit card payments account for over <strong>75%</strong> of all transaction volume (R$ 12.5M+), with an average installment count of 3.1x. Offering dynamic installment discounts can accelerate conversion rates for high-ticket electronics.</div>
     </div>
     """, unsafe_allow_html=True)
+
+
+# ==============================================================================
+# VIEW 6: SETTINGS & API CONFIGURATION
+# ==============================================================================
+elif "Settings" in st.session_state.current_nav:
+    st.markdown("""
+    <div class="hero-banner">
+        <div class="hero-headline">System <span>Configuration & API Settings</span></div>
+        <div class="hero-desc">Manage your Groq AI engine credentials, LLM model parameters, and Streamlit Cloud secrets.</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("<div class='workspace-panel'>", unsafe_allow_html=True)
+    st.markdown("<div class='panel-title'>🔑 Groq API Key Configuration</div>", unsafe_allow_html=True)
+    
+    current_key = get_groq_api_key()
+    if current_key:
+        masked_key = current_key[:8] + "..." + current_key[-4:] if len(current_key) > 12 else "********"
+        st.success(f"✅ Active Groq API Key: `{masked_key}`")
+    else:
+        st.warning("⚠️ No Groq API Key detected. Please enter one below to enable AI querying.")
+
+    with st.form("settings_api_key_form"):
+        new_key = st.text_input("Enter or Update Groq API Key", value=st.session_state.user_groq_api_key, type="password", placeholder="gsk_...")
+        scol1, scol2 = st.columns([1.5, 3])
+        with scol1:
+            save_btn = st.form_submit_button("💾 Save Key to Session", use_container_width=True)
+        if save_btn:
+            st.session_state.user_groq_api_key = new_key.strip()
+            st.success("✅ API Key updated for this session!")
+            st.rerun()
+
+    st.markdown("---")
+    st.markdown("""
+    ### ☁️ Permanent Streamlit Cloud Setup
+    To make your key permanent for all visitors on Streamlit Cloud without typing it:
+    1. Go to your **Streamlit App Dashboard**: [share.streamlit.io](https://share.streamlit.io)
+    2. Click **App Settings → Secrets**
+    3. Paste:
+       ```toml
+       GROQ_API_KEY = "gsk_your_groq_api_key_here"
+       ```
+    4. Click **Save**. The app will automatically connect!
+    """)
+    st.markdown("</div>", unsafe_allow_html=True)
