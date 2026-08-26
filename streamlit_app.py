@@ -652,11 +652,13 @@ def run_query_for_chart(db, sql):
 
 
 # ── Session State Management ──
-if "db_manager" not in st.session_state:
-    _, default_olist_url = get_default_olist_engine()
-    st.session_state.db_manager = DatabaseConnectionManager(default_olist_url, name="Olist Brazilian E-Commerce (Demo)")
+from app.database import MultiDatabaseManager
+if "multi_db_mgr" not in st.session_state:
+    st.session_state.multi_db_mgr = MultiDatabaseManager()
+
+st.session_state.db_manager = st.session_state.multi_db_mgr.get_active()
+
 if "messages" not in st.session_state:
-    st.session_state.messages = []
     st.session_state.messages = []
 if "current_nav" not in st.session_state:
     st.session_state.current_nav = "AI Analyst"
@@ -677,7 +679,7 @@ if "user_groq_api_key" not in st.session_state:
 
 
 # ── Top Navigation Bar Header ──
-nav_col1, nav_col2, nav_col3 = st.columns([3, 5, 2.5])
+nav_col1, nav_col2, nav_col3 = st.columns([2.8, 4.7, 2.5])
 
 with nav_col1:
     st.markdown("""
@@ -697,12 +699,17 @@ with nav_col2:
     st.session_state.current_nav = selected_tab.split(" ")[-1]
 
 with nav_col3:
-    # Live status and Executive View Toggle
-    st.markdown("""
-    <div style="display: flex; align-items: center; justify-content: flex-end; gap: 10px;">
-        <div class="status-badge"><span class="status-dot"></span> Live DB: 100k+ Orders</div>
-    </div>
-    """, unsafe_allow_html=True)
+    # Database Switcher & Executive View Toggle
+    db_list = st.session_state.multi_db_mgr.list_databases()
+    db_names = [d["name"] for d in db_list]
+    active_idx = db_names.index(st.session_state.multi_db_mgr.active_name) if st.session_state.multi_db_mgr.active_name in db_names else 0
+    
+    sel_db = st.selectbox("Active Database Source", db_names, index=active_idx, key="global_db_switch", label_visibility="collapsed")
+    if sel_db != st.session_state.multi_db_mgr.active_name:
+        st.session_state.multi_db_mgr.set_active(sel_db)
+        st.session_state.db_manager = st.session_state.multi_db_mgr.get_active()
+        st.rerun()
+
     st.session_state.executive_mode = st.toggle("👔 Executive View", value=st.session_state.executive_mode, help="Hides SQL and technical query details for high-level executive reviews.")
 
 st.markdown("<div style='margin-bottom: 1.2rem;'></div>", unsafe_allow_html=True)
@@ -1140,16 +1147,69 @@ elif "Sources" in st.session_state.current_nav:
     </div>
     """, unsafe_allow_html=True)
 
+    # Registered Databases Overview
+    st.markdown("<div class='panel-title' style='margin-bottom: 12px;'>📚 Registered Database Connections</div>", unsafe_allow_html=True)
+    all_dbs = st.session_state.multi_db_mgr.list_databases()
+    
+    for db_item in all_dbs:
+        dname = db_item["name"]
+        dtype = db_item["db_type"]
+        durl = db_item["masked_url"]
+        is_act = db_item["is_active"]
+        is_conn = db_item["is_connected"]
+        
+        card_border = "#8B5CF6" if is_act else "rgba(148, 163, 184, 0.2)"
+        
+        c1, c2, c3 = st.columns([4, 1.2, 1])
+        with c1:
+            st.markdown(f"""
+            <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid {card_border}; border-radius: 8px; padding: 12px 16px; margin-bottom: 8px;">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <div>
+                        <span style="font-weight: 700; color: #F1F5F9; font-size: 15px;">{'⚡ ' if is_act else '📁 '}{dname}</span>
+                        <span style="background: rgba(139, 92, 246, 0.2); color: #E879F9; font-size: 11px; padding: 2px 8px; border-radius: 4px; margin-left: 8px;">{dtype}</span>
+                        {'<span style="background: rgba(16, 185, 129, 0.2); color: #10B981; font-size: 11px; padding: 2px 8px; border-radius: 4px; margin-left: 6px;">ACTIVE</span>' if is_act else ''}
+                    </div>
+                    <div style="font-size: 12px; color: {'#10B981' if is_conn else '#EF4444'};">● {'CONNECTED' if is_conn else 'DISCONNECTED'}</div>
+                </div>
+                <div style="font-family: var(--font-mono); font-size: 12px; color: #94A3B8; margin-top: 4px;">URI: {durl}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with c2:
+            if not is_act:
+                if st.button("⚡ Set Active", key=f"btn_set_act_{dname}", use_container_width=True):
+                    st.session_state.multi_db_mgr.set_active(dname)
+                    st.session_state.db_manager = st.session_state.multi_db_mgr.get_active()
+                    st.rerun()
+            else:
+                st.markdown("<div style='text-align:center; padding-top:14px; font-size:12px; color:#10B981;'>Current Source</div>", unsafe_allow_html=True)
+        with c3:
+            if dname != "Olist E-Commerce (Demo)":
+                if st.button("🗑️", key=f"btn_del_{dname}", use_container_width=True, help="Remove connection"):
+                    st.session_state.multi_db_mgr.remove_database(dname)
+                    st.session_state.db_manager = st.session_state.multi_db_mgr.get_active()
+                    st.rerun()
+
+    st.markdown("<div style='margin-bottom: 1.2rem;'></div>", unsafe_allow_html=True)
+
     # Universal Database Connection Form
-    with st.expander("➕ Connect a New SQL Database (PostgreSQL / MySQL / SQLite)", expanded=False):
+    with st.expander("➕ Register a New Database (PostgreSQL / MySQL / SQLite)", expanded=False):
         st.markdown("<p style='font-size: 13px; color: #94A3B8;'>Enter your database connection URL. Passwords are encrypted in memory and masked in the UI.</p>", unsafe_allow_html=True)
         
-        db_type_choice = st.selectbox(
-            "Select Database Type",
-            ["PostgreSQL", "MySQL", "SQLite"],
-            index=0,
-            key="db_type_selector"
-        )
+        fcol1, fcol2 = st.columns([1.5, 3])
+        with fcol1:
+            db_type_choice = st.selectbox(
+                "Database Type",
+                ["PostgreSQL", "MySQL", "SQLite"],
+                index=0,
+                key="db_type_selector"
+            )
+        with fcol2:
+            db_alias_input = st.text_input(
+                "Connection Alias / Name",
+                placeholder=f"e.g. Production {db_type_choice} DB",
+                key="custom_db_alias_input"
+            )
         
         placeholder_map = {
             "PostgreSQL": "postgresql://username:password@localhost:5432/database_name",
@@ -1183,27 +1243,30 @@ elif "Sources" in st.session_state.current_nav:
                         st.error(f"❌ Connection error: {e}")
 
         with btn_col2:
-            if st.button("🔗 Connect & Activate", key="btn_activate_conn", use_container_width=True):
+            if st.button("🔗 Register & Activate", key="btn_activate_conn", use_container_width=True):
                 if not conn_url_input:
                     st.error("Please enter a connection URL first.")
                 else:
+                    alias = db_alias_input.strip() or f"Custom {db_type_choice} DB"
                     try:
-                        new_mgr = DatabaseConnectionManager(conn_url_input, name=f"Custom {db_type_choice} DB")
+                        new_mgr = DatabaseConnectionManager(conn_url_input, name=alias)
                         ok, msg = new_mgr.test_connection()
                         if ok:
-                            st.session_state.db_manager = new_mgr
-                            st.success(f"✅ Successfully switched active database to {db_type_choice}!")
+                            st.session_state.multi_db_mgr.register_database(alias, new_mgr)
+                            st.session_state.multi_db_mgr.set_active(alias)
+                            st.session_state.db_manager = st.session_state.multi_db_mgr.get_active()
+                            st.success(f"✅ Successfully registered and switched to {alias}!")
                             st.rerun()
                         else:
                             st.error(f"❌ Could not connect: {msg}")
                     except Exception as e:
-                        st.error(f"❌ Activation error: {e}")
+                        st.error(f"❌ Registration error: {e}")
 
         with btn_col3:
-            if st.button("🔄 Reset to Olist Demo Database", key="btn_reset_demo", use_container_width=True):
-                _, olist_url = get_default_olist_engine()
-                st.session_state.db_manager = DatabaseConnectionManager(olist_url, name="Olist Brazilian E-Commerce (Demo)")
-                st.info("Reset to default Olist Demo SQLite database.")
+            if st.button("🔄 Reset to Olist Demo", key="btn_reset_demo", use_container_width=True):
+                st.session_state.multi_db_mgr.set_active("Olist E-Commerce (Demo)")
+                st.session_state.db_manager = st.session_state.multi_db_mgr.get_active()
+                st.info("Switched to default Olist Demo SQLite database.")
                 st.rerun()
 
     # Schema Overview & Inspector using SchemaCache
