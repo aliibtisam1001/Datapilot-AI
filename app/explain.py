@@ -50,9 +50,9 @@ def explain_result(question: str, df: pd.DataFrame, sql: str = None, llm=None) -
     else:
         data_str = df.head(20).to_string(index=False) + f"\n... ({len(df)} total rows)"
 
-    prompt = f"""You are a business analyst assistant. A user asked a question about an e-commerce database (Olist Brazilian E-Commerce), and a SQL query was run to answer it.
+    prompt = f"""You are an executive business intelligence analyst assistant. A stakeholder asked a business question, and a SQL query was executed on the database to answer it.
 
-Your job: Write a clear, concise 2-3 sentence summary of the results in plain English. Be specific with numbers. Do NOT mention SQL, databases, tables, or technical details — speak as if explaining to a business stakeholder.
+Your job: Write a clear, concise 2-3 sentence summary of the results in plain English. Be specific with numbers. Do NOT mention SQL, databases, tables, or technical details — speak directly as if briefing an executive stakeholder.
 
 User's question: {question}
 

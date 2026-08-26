@@ -855,31 +855,54 @@ if "Analyst" in st.session_state.current_nav:
                     execution_success = False
                     last_err = ""
 
+                    from app.database import get_cached_schema
+                    from app.agent import UniversalSQLGenerator, select_relevant_schema
+
                     active_db_url = st.session_state.db_manager.normalized_url if "db_manager" in st.session_state and st.session_state.db_manager else ""
+                    active_engine = st.session_state.db_manager.engine if "db_manager" in st.session_state and st.session_state.db_manager else None
+
+                    # Introspect or fetch cached schema
+                    current_schema = None
+                    if active_engine and active_db_url:
+                        try:
+                            current_schema = get_cached_schema(active_engine, active_db_url)
+                        except Exception:
+                            current_schema = None
+
                     for model_candidate in MODELS_PRIORITY:
                         try:
-                            agent, db, llm = init_agent(groq_key, model_name=model_candidate, db_url=active_db_url)
                             explain_llm = init_explain_llm(groq_key, model_name=model_candidate)
+                            
+                            # 1. Fast Universal SQL Generator
+                            if current_schema:
+                                relevant_schema = select_relevant_schema(current_schema, user_input)
+                                gen_result = UniversalSQLGenerator.generate_sql(
+                                    question=user_input,
+                                    db_schema=relevant_schema,
+                                    api_key=groq_key,
+                                    model_name=model_candidate,
+                                )
+                                main_sql = gen_result.sql
+                                answer = gen_result.reasoning_summary
 
-                            callback_handler = SQLCaptureCallbackHandler()
-                            result = agent.invoke(
-                                {"input": user_input},
-                                config={"callbacks": [callback_handler]}
-                            )
-                            answer = strip_thinking(result.get("output", "No response generated."))
+                                df = pd.DataFrame()
+                                if main_sql and active_engine:
+                                    try:
+                                        df = st.session_state.db_manager.execute_query(main_sql)
+                                    except Exception:
+                                        df = pd.DataFrame()
 
-                            # Extract SQL
-                            main_sql = None
-                            if callback_handler.sql_queries:
-                                main_sql = callback_handler.sql_queries[-1]
-
-                            df = pd.DataFrame()
-                            if main_sql:
-                                try:
-                                    validated_sql = validate_sql(main_sql)
-                                    df = run_query_for_chart(db, validated_sql)
-                                except Exception:
-                                    df = run_query_for_chart(db, main_sql)
+                            else:
+                                # Fallback to LangChain agent if schema discovery failed
+                                agent, db, llm = init_agent(groq_key, model_name=model_candidate, db_url=active_db_url)
+                                callback_handler = SQLCaptureCallbackHandler()
+                                result = agent.invoke(
+                                    {"input": user_input},
+                                    config={"callbacks": [callback_handler]}
+                                )
+                                answer = strip_thinking(result.get("output", "No response generated."))
+                                main_sql = callback_handler.sql_queries[-1] if callback_handler.sql_queries else None
+                                df = run_query_for_chart(db, validate_sql(main_sql)) if main_sql else pd.DataFrame()
 
                             chart_fig = None
                             if not df.empty:
@@ -893,6 +916,8 @@ if "Analyst" in st.session_state.current_nav:
                                 try:
                                     time.sleep(1)
                                     explanation = explain_result(user_input, df, sql=main_sql, llm=explain_llm)
+                                    if explanation:
+                                        answer = explanation
                                 except Exception:
                                     pass
 

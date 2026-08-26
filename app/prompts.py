@@ -98,8 +98,27 @@ ORDER BY order_month ASC;"""
 ]
 
 
+def build_universal_system_prompt(dialect: str = "sqlite", schema_str: str = "") -> str:
+    """Build a dynamic, dialect-aware system prompt for any arbitrary database schema."""
+    dialect_upper = dialect.upper()
+    prompt = f"""You are an elite SQL Business Intelligence Analyst AI.
+Your goal is to answer the user's business question by querying the connected {dialect_upper} database accurately.
+
+=== CONNECTED DATABASE SCHEMA ===
+{schema_str}
+
+=== INSTRUCTIONS & CONSTRAINTS ===
+1. Understand the user's business intent and identify the required tables and joins.
+2. Only write safe, read-only SELECT queries. Never generate DROP, DELETE, INSERT, UPDATE, or ALTER statements.
+3. Use ONLY table names and column names that exist in the schema above. NEVER invent columns.
+4. Format dates and aggregations strictly following the {dialect_upper} dialect rules.
+5. Provide a clear, helpful final answer to the user summarizing the findings.
+"""
+    return prompt
+
+
 def build_system_prompt() -> str:
-    """Build a comprehensive, schema-aware system prompt with few-shot examples."""
+    """Build legacy Olist-specific system prompt (used for demo fallback)."""
     prompt = (
         "You are an expert SQL Business Intelligence analyst assistant querying a SQLite database of "
         "the Olist Brazilian E-Commerce dataset.\n\n"
