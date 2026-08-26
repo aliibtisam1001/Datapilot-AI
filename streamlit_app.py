@@ -580,6 +580,7 @@ from app.database import (
     DatabaseConnectionManager,
     MultiDatabaseManager,
     DatabaseType,
+    detect_database_type,
     mask_url,
     get_default_olist_engine,
     get_cached_schema,
@@ -774,6 +775,73 @@ if "Analyst" in st.session_state.current_nav:
                 st.session_state.user_groq_api_key = entered_k.strip()
                 st.success("✅ Connected successfully! You can now run queries.")
                 st.rerun()
+
+    # ── Frontend Database URL Quick Connector ──
+    active_db_name = st.session_state.db_manager.name if "db_manager" in st.session_state and st.session_state.db_manager else "Olist E-Commerce (Demo)"
+    active_db_type = st.session_state.db_manager.db_type.value.upper() if "db_manager" in st.session_state and st.session_state.db_manager else "SQLITE"
+    active_db_masked = st.session_state.db_manager.masked_url if "db_manager" in st.session_state and st.session_state.db_manager else ""
+
+    st.markdown(f"""
+    <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(139, 92, 246, 0.35); border-radius: 10px; padding: 12px 18px; margin-bottom: 1rem;">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+            <div>
+                <span style="font-size: 13px; font-weight: 700; color: #E879F9;">🗄️ Active Data Source:</span>
+                <span style="font-size: 13px; font-weight: 600; color: #F1F5F9; margin-left: 4px;">{active_db_name}</span>
+                <span style="background: rgba(139, 92, 246, 0.25); color: #C084FC; font-size: 11px; padding: 2px 8px; border-radius: 4px; margin-left: 6px;">{active_db_type}</span>
+                <span style="font-family: var(--font-mono); font-size: 11px; color: #94A3B8; margin-left: 8px;">({active_db_masked})</span>
+            </div>
+            <div style="font-size: 12px; color: #10B981; font-weight: 600;">● Live & Ready</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    with st.expander("🔗 Connect Any Custom Database (Paste PostgreSQL / MySQL / SQLite URL)", expanded=False):
+        st.markdown("<p style='font-size: 13px; color: #CBD5E1; margin-bottom: 8px;'>Paste your database connection string below. DataPilot AI will immediately analyze its schema and allow natural language queries:</p>", unsafe_allow_html=True)
+        
+        q_url_col, q_btn_col1, q_btn_col2 = st.columns([3.5, 1.3, 1.2])
+        with q_url_col:
+            quick_db_url = st.text_input(
+                "Database Connection URL",
+                placeholder="e.g. postgresql://username:password@hostname:5432/dbname",
+                key="hero_quick_db_url",
+                type="password",
+                label_visibility="collapsed"
+            )
+        with q_btn_col1:
+            if st.button("⚡ Connect & Query", key="btn_hero_connect_db", use_container_width=True):
+                if not quick_db_url:
+                    st.error("Please enter a database connection URL.")
+                else:
+                    with st.spinner("Testing connection and analyzing schema..."):
+                        try:
+                            detected = detect_database_type(quick_db_url.strip())
+                            alias = f"Custom {detected.value.title()} DB"
+                            new_mgr = DatabaseConnectionManager(quick_db_url.strip(), name=alias)
+                            ok, msg = new_mgr.test_connection()
+                            if ok:
+                                st.session_state.multi_db_mgr.register_database(alias, new_mgr)
+                                st.session_state.multi_db_mgr.set_active(alias)
+                                st.session_state.db_manager = st.session_state.multi_db_mgr.get_active()
+                                st.success(f"✅ Successfully connected to {alias}! You can now query your data.")
+                                st.rerun()
+                            else:
+                                st.error(f"❌ Connection failed: {msg}")
+                        except Exception as e:
+                            st.error(f"❌ Error: {e}")
+        with q_btn_col2:
+            if st.button("🔄 Reset Demo DB", key="btn_hero_reset_demo", use_container_width=True):
+                st.session_state.multi_db_mgr.set_active("Olist E-Commerce (Demo)")
+                st.session_state.db_manager = st.session_state.multi_db_mgr.get_active()
+                st.info("Switched to default Olist Demo SQLite database.")
+                st.rerun()
+
+        st.markdown("""
+        <div style="font-size: 11.5px; color: #94A3B8; margin-top: 6px; display: flex; gap: 16px; flex-wrap: wrap;">
+            <span>🐘 <strong>PostgreSQL / Supabase / Neon:</strong> <code>postgresql://user:pass@host:5432/dbname</code></span>
+            <span>🐬 <strong>MySQL / TiDB:</strong> <code>mysql://user:pass@host:3306/dbname</code></span>
+            <span>🪶 <strong>SQLite:</strong> <code>sqlite:///path/to/database.db</code></span>
+        </div>
+        """, unsafe_allow_html=True)
 
     # ── Quick Launch Suggestion Pills ──
     from app.analytics import generate_suggested_questions, discover_kpis, generate_executive_briefing
