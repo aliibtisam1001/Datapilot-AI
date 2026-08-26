@@ -1,105 +1,114 @@
 """
-Module 7 - SQL Guardrail Layer.
-Validates SQL queries before execution:
-  - Only SELECT statements allowed
-  - Rejects INSERT, UPDATE, DELETE, DROP, ALTER, CREATE, EXEC, PRAGMA (write operations)
-  - Rejects multi-statement injection (semicolons followed by another statement)
-  - Enforces a configurable row LIMIT cap
+Hardened Enterprise SQL Guardrails & Security Layer for DataPilot AI.
+Guarantees read-only execution, blocks injection vectors, multi-statement attacks,
+destructive DDL/DML, dialect-specific exploit functions, and enforces strict row caps.
 """
 import re
+from typing import Optional
 import sqlparse
+from sqlparse.sql import Statement, TokenList, Identifier
 
 
-# Dangerous keywords that should never appear as top-level statements
+# Destructive DDL / DML / Admin Keywords that must never be executed
 BLOCKED_KEYWORDS = {
     'INSERT', 'UPDATE', 'DELETE', 'DROP', 'ALTER', 'CREATE',
-    'EXEC', 'EXECUTE', 'PRAGMA', 'ATTACH', 'DETACH', 'REPLACE',
-    'GRANT', 'REVOKE', 'TRUNCATE', 'MERGE',
+    'TRUNCATE', 'EXEC', 'EXECUTE', 'GRANT', 'REVOKE', 'PRAGMA',
+    'CALL', 'MERGE', 'COPY', 'ATTACH', 'DETACH', 'REPLACE',
+    'VACUUM', 'REINDEX', 'LOCK', 'UNLOCK', 'SHUTDOWN', 'KILL',
+}
+
+# Dialect-specific dangerous functions & file operations
+BLOCKED_FUNCTIONS = {
+    'PG_SLEEP', 'PG_READ_FILE', 'PG_WRITE_FILE', 'DBLINK', 'PG_LS_DIR', 'PG_STAT_FILE',
+    'INTO OUTFILE', 'INTO DUMPFILE', 'LOAD DATA', 'LOAD_FILE', 'BENCHMARK', 'SLEEP',
+    'XP_CMDSHELL',
 }
 
 DEFAULT_MAX_ROWS = 500
 
 
 class SQLValidationError(Exception):
-    """Raised when a SQL query fails guardrail validation."""
+    """Raised when a SQL query fails security guardrail validation."""
     pass
 
 
 def validate_sql(sql: str, max_rows: int = DEFAULT_MAX_ROWS) -> str:
     """
-    Validate and sanitize a SQL query.
+    Validate, sanitize, and enforce security policies on a SQL query.
 
     Args:
         sql: The raw SQL string to validate.
-        max_rows: Maximum number of rows to allow (appends/replaces LIMIT).
+        max_rows: Maximum rows allowed (enforces/caps LIMIT).
 
     Returns:
-        The validated (and possibly LIMIT-capped) SQL string.
+        The validated and secured SQL string.
 
     Raises:
-        SQLValidationError: If the query is not a safe SELECT.
+        SQLValidationError: If the query violates read-only or injection policies.
     """
-    if not sql or not sql.strip():
-        raise SQLValidationError("Empty query.")
+    if not sql or not isinstance(sql, str) or not sql.strip():
+        raise SQLValidationError("Query is empty.")
 
     cleaned = sql.strip()
 
-    # Parse the SQL to detect multiple statements
+    # 1. Parse into statements using sqlparse
     parsed_statements = sqlparse.parse(cleaned)
 
-    # Filter out empty/whitespace-only statements (trailing semicolons)
+    # Filter out empty or whitespace/comment-only statements
     real_statements = [
         s for s in parsed_statements
-        if s.get_type() is not None or str(s).strip()
-    ]
-    # Also filter out statements that are just whitespace/semicolons
-    real_statements = [
-        s for s in real_statements
         if str(s).strip().rstrip(';').strip()
     ]
 
-    if len(real_statements) == 0:
-        raise SQLValidationError("Empty query.")
+    if not real_statements:
+        raise SQLValidationError("Query contains no valid executable statements.")
 
+    # 2. Block multi-statement queries
     if len(real_statements) > 1:
         raise SQLValidationError(
-            "Multi-statement queries are not allowed. Only single SELECT statements are permitted."
+            "Multi-statement execution rejected. Only a single read-only SELECT statement is permitted."
         )
 
     stmt = real_statements[0]
     stmt_str = str(stmt).strip()
 
-    # Check statement type via sqlparse
-    stmt_type = stmt.get_type()
-
-    # Check if the first meaningful keyword is SELECT (or WITH for CTEs)
-    # Normalize: remove comments, get first keyword
+    # 3. Verify the primary keyword is SELECT or WITH
     first_keyword = _get_first_keyword(stmt_str)
-
     if first_keyword not in ('SELECT', 'WITH'):
         raise SQLValidationError(
-            f"Only SELECT statements are allowed. Got: {first_keyword or 'unknown'}"
+            f"Only read-only SELECT queries are allowed. Forbidden statement type: '{first_keyword or 'UNKNOWN'}'."
         )
 
-    # Scan for blocked keywords appearing as standalone tokens
-    # (not inside strings or as column/table names)
-    upper_sql = stmt_str.upper()
+    # 4. Check for blocked standalone keywords outside string literals
+    stmt_without_literals = _strip_string_literals(stmt_str)
+    upper_no_lit = stmt_without_literals.upper()
+
     for keyword in BLOCKED_KEYWORDS:
-        # Use word boundary regex to avoid false positives
-        # e.g., "product_description" should not trigger on "CREATE"
-        pattern = r'\b' + keyword + r'\b'
-        if re.search(pattern, upper_sql):
-            # Double-check it's not inside a string literal
-            if _keyword_outside_strings(stmt_str, keyword):
-                raise SQLValidationError(
-                    f"Forbidden keyword detected: {keyword}. "
-                    f"Only SELECT queries are allowed."
-                )
+        pattern = r'\b' + re.escape(keyword) + r'\b'
+        if re.search(pattern, upper_no_lit):
+            raise SQLValidationError(
+                f"Security Violation: Forbidden keyword '{keyword}' detected. Only read-only SELECT queries are permitted."
+            )
 
-    # Enforce row limit
-    result_sql = _enforce_limit(stmt_str, max_rows)
+    # 5. Check for dangerous dialect functions and file operations
+    for func in BLOCKED_FUNCTIONS:
+        pattern = r'\b' + re.escape(func) + r'\b'
+        if re.search(pattern, upper_no_lit):
+            raise SQLValidationError(
+                f"Security Violation: Potentially hazardous function or operation '{func}' is strictly blocked."
+            )
 
-    return result_sql
+    # 6. Semicolon injection detection inside statement
+    # Strip string literals and comments, then check for semicolons before the end
+    clean_no_comment = sqlparse.format(stmt_str, strip_comments=True).strip()
+    clean_no_lit = _strip_string_literals(clean_no_comment).rstrip(';').strip()
+    if ';' in clean_no_lit:
+        raise SQLValidationError(
+            "Security Violation: Semicolon delimiter detected within query payload."
+        )
+
+    # 7. Enforce Row LIMIT
+    return _enforce_limit(stmt_str, max_rows)
 
 
 def _get_first_keyword(sql: str) -> str:
@@ -117,35 +126,38 @@ def _get_first_keyword(sql: str) -> str:
     return ''
 
 
-def _keyword_outside_strings(sql: str, keyword: str) -> bool:
-    """Check if a keyword appears outside of string literals."""
-    # Remove all string literals (both single and double quoted)
-    no_strings = re.sub(r"'[^']*'", '', sql)
-    no_strings = re.sub(r'"[^"]*"', '', no_strings)
-    pattern = r'\b' + keyword + r'\b'
-    return bool(re.search(pattern, no_strings, re.IGNORECASE))
+def _strip_string_literals(sql: str) -> str:
+    """Remove string literals (single and double quoted) to prevent false positives."""
+    no_single = re.sub(r"'[^']*'", "''", sql)
+    no_double = re.sub(r'"[^"]*"', '""', no_single)
+    return no_double
 
 
 def _enforce_limit(sql: str, max_rows: int) -> str:
     """Ensure the query has a LIMIT clause not exceeding max_rows."""
-    upper = sql.upper().strip().rstrip(';')
+    sql_no_semi = sql.strip().rstrip(';')
+    upper = sql_no_semi.upper()
 
-    # Check if LIMIT already exists
-    limit_match = re.search(r'\bLIMIT\s+(\d+)', upper)
+    # Match LIMIT clause at the end of the query
+    limit_match = re.search(r'\bLIMIT\s+(\d+)\s*$', upper, flags=re.IGNORECASE)
     if limit_match:
         existing_limit = int(limit_match.group(1))
         if existing_limit > max_rows:
-            # Replace the existing limit with max_rows
-            sql_no_semi = sql.strip().rstrip(';')
-            result = re.sub(
-                r'\bLIMIT\s+\d+',
-                f'LIMIT {max_rows}',
-                sql_no_semi,
-                flags=re.IGNORECASE
-            )
-            return result
-        return sql.strip().rstrip(';')
+            # Replace excessive limit with max_rows
+            return re.sub(r'\bLIMIT\s+\d+\s*$', f'LIMIT {max_rows}', sql_no_semi, flags=re.IGNORECASE)
+        return sql_no_semi
     else:
-        # Append LIMIT
-        sql_no_semi = sql.strip().rstrip(';')
         return f"{sql_no_semi} LIMIT {max_rows}"
+
+
+def sanitize_error_message(err: Exception) -> str:
+    """
+    Sanitize exception messages to prevent leaking server paths, credentials, or internal stack traces.
+    """
+    msg = str(err)
+    # Mask passwords if any URL was leaked in error
+    msg = re.sub(r':([^:@/]+)@', ':***@', msg)
+    # Mask absolute windows/unix paths
+    msg = re.sub(r'[A-Za-z]:\\[^ \n\r\t:]+', '[internal_path]', msg)
+    msg = re.sub(r'/[a-zA-Z0-9_\.-]+/[a-zA-Z0-9_\.-]+/[a-zA-Z0-9_\.-]+', '[internal_path]', msg)
+    return msg
