@@ -576,20 +576,30 @@ from app.prompts import build_system_prompt
 from app.explain import explain_result
 from app.charts import auto_chart
 from app.guardrails import validate_sql
+from app.database import (
+    DatabaseConnectionManager,
+    DatabaseType,
+    mask_url,
+    get_default_olist_engine,
+    InvalidURLError,
+    UnsupportedDatabaseError,
+)
 
 MODELS_PRIORITY = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27b"]
 
 
 @st.cache_resource
-def init_agent(api_key: str, model_name: str = "openai/gpt-oss-120b"):
-    """Initialize LangChain SQL Agent with Groq LLM."""
+def init_agent(api_key: str, model_name: str = "openai/gpt-oss-120b", db_url: str = ""):
+    """Initialize LangChain SQL Agent with Groq LLM and dynamic database connection."""
     from langchain_groq import ChatGroq
     from langchain_community.agent_toolkits import create_sql_agent
     from langchain_community.agent_toolkits.sql.toolkit import SQLDatabaseToolkit
     from langchain_community.utilities import SQLDatabase
 
-    db_path = os.path.join(os.path.dirname(__file__), "data", "olist.db")
-    db = SQLDatabase.from_uri(f"sqlite:///{db_path}")
+    if not db_url:
+        _, db_url = get_default_olist_engine()
+
+    db = SQLDatabase.from_uri(db_url)
 
     llm = ChatGroq(
         model=model_name,
@@ -623,9 +633,14 @@ def init_explain_llm(api_key: str, model_name: str = "openai/gpt-oss-120b"):
 
 
 def run_query_for_chart(db, sql):
-    """Run a validated SQL query and return DataFrame."""
+    """Run a validated SQL query against active database manager and return DataFrame."""
     if not sql:
         return pd.DataFrame()
+    if "db_manager" in st.session_state and st.session_state.db_manager:
+        try:
+            return st.session_state.db_manager.execute_query(sql)
+        except Exception:
+            pass
     try:
         import sqlalchemy
         engine = sqlalchemy.create_engine(db._engine.url)
@@ -637,7 +652,11 @@ def run_query_for_chart(db, sql):
 
 
 # ── Session State Management ──
+if "db_manager" not in st.session_state:
+    _, default_olist_url = get_default_olist_engine()
+    st.session_state.db_manager = DatabaseConnectionManager(default_olist_url, name="Olist Brazilian E-Commerce (Demo)")
 if "messages" not in st.session_state:
+    st.session_state.messages = []
     st.session_state.messages = []
 if "current_nav" not in st.session_state:
     st.session_state.current_nav = "AI Analyst"
@@ -836,9 +855,10 @@ if "Analyst" in st.session_state.current_nav:
                     execution_success = False
                     last_err = ""
 
+                    active_db_url = st.session_state.db_manager.normalized_url if "db_manager" in st.session_state and st.session_state.db_manager else ""
                     for model_candidate in MODELS_PRIORITY:
                         try:
-                            agent, db, llm = init_agent(groq_key, model_name=model_candidate)
+                            agent, db, llm = init_agent(groq_key, model_name=model_candidate, db_url=active_db_url)
                             explain_llm = init_explain_llm(groq_key, model_name=model_candidate)
 
                             callback_handler = SQLCaptureCallbackHandler()
@@ -1058,55 +1078,138 @@ elif "Dashboard" in st.session_state.current_nav:
 elif "Sources" in st.session_state.current_nav:
     st.markdown("""
     <div class="hero-banner">
-        <div class="hero-headline">Connected <span>Enterprise Data Sources</span></div>
-        <div class="hero-desc">Live database connections, automated schema synchronizations, and data pipeline status monitoring.</div>
+        <div class="hero-headline">Universal <span>Enterprise Data Sources</span></div>
+        <div class="hero-desc">Connect any SQL database (PostgreSQL, MySQL, SQLite), monitor live connection health, and inspect database schema structures.</div>
     </div>
     """, unsafe_allow_html=True)
 
-    # Active Live Connection
-    st.markdown("""
+    db_mgr: DatabaseConnectionManager = st.session_state.get("db_manager")
+    is_live = db_mgr.is_connected if db_mgr else False
+    current_db_type = db_mgr.db_type.value.upper() if db_mgr else "UNKNOWN"
+    current_masked_url = db_mgr.masked_url if db_mgr else "No connection configured"
+
+    # Active Live Connection Card
+    st.markdown(f"""
     <div class="workspace-panel" style="border-color: rgba(16, 185, 129, 0.4); margin-bottom: 1.5rem;">
         <div style="display: flex; align-items: center; justify-content: space-between;">
             <div style="display: flex; align-items: center; gap: 12px;">
                 <div style="font-size: 28px;">🗄️</div>
                 <div>
-                    <div style="font-family: var(--font-title); font-size: 18px; font-weight: 700;">SQLite — Olist Brazilian E-Commerce Live DB</div>
-                    <div style="font-size: 13px; color: #94A3B8;">URI: <code>sqlite:///data/olist.db</code> · 9 relational tables · 100,000+ orders</div>
+                    <div style="font-family: var(--font-title); font-size: 18px; font-weight: 700;">{db_mgr.name if db_mgr else 'Active Database'} ({current_db_type})</div>
+                    <div style="font-size: 13px; color: #94A3B8;">URI: <code>{current_masked_url}</code></div>
                 </div>
             </div>
-            <div class="status-badge"><span class="status-dot"></span> CONNECTED & SYNCED</div>
+            <div class="status-badge"><span class="status-dot"></span> {'CONNECTED & SYNCED' if is_live else 'DISCONNECTED'}</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-    # 9 Schema Tables Grid
-    st.markdown("<div class='panel-title' style='margin-bottom: 12px;'>📊 Live Database Schema Tables</div>", unsafe_allow_html=True)
-    
-    tables_data = [
-        ("orders", "99,441 records", "order_id, customer_id, order_status, purchase_timestamp, delivery_date"),
-        ("order_items", "112,650 records", "order_id, order_item_id, product_id, seller_id, price, freight_value"),
-        ("customers", "99,441 records", "customer_id, customer_unique_id, customer_zip, customer_city, customer_state"),
-        ("products", "32,951 records", "product_id, product_category_name, product_weight_g, product_photos_qty"),
-        ("order_payments", "103,886 records", "order_id, payment_sequential, payment_type, payment_installments, payment_value"),
-        ("order_reviews", "99,224 records", "review_id, order_id, review_score, review_comment_message, review_creation_date"),
-        ("sellers", "3,095 records", "seller_id, seller_zip_code_prefix, seller_city, seller_state"),
-        ("geolocation", "1,000,163 records", "geolocation_zip_code_prefix, geolocation_lat, geolocation_lng, geolocation_city"),
-        ("product_category_name_translation", "71 records", "product_category_name, product_category_name_english"),
-    ]
+    # Universal Database Connection Form
+    with st.expander("➕ Connect a New SQL Database (PostgreSQL / MySQL / SQLite)", expanded=False):
+        st.markdown("<p style='font-size: 13px; color: #94A3B8;'>Enter your database connection URL. Passwords are encrypted in memory and masked in the UI.</p>", unsafe_allow_html=True)
+        
+        db_type_choice = st.selectbox(
+            "Select Database Type",
+            ["PostgreSQL", "MySQL", "SQLite"],
+            index=0,
+            key="db_type_selector"
+        )
+        
+        placeholder_map = {
+            "PostgreSQL": "postgresql://username:password@localhost:5432/database_name",
+            "MySQL": "mysql://username:password@localhost:3306/database_name",
+            "SQLite": "sqlite:///path/to/database.db"
+        }
 
-    scol1, scol2, scol3 = st.columns(3)
-    for idx, (tname, trows, tcols) in enumerate(tables_data):
-        col_target = [scol1, scol2, scol3][idx % 3]
-        with col_target:
-            st.markdown(f"""
-            <div class="kpi-box" style="margin-bottom: 12px;">
-                <div style="display: flex; align-items: center; justify-content: space-between;">
-                    <div style="font-family: var(--font-title); font-weight: 700; color: #E879F9; font-size: 15px;">📁 {tname}</div>
-                    <div style="font-family: var(--font-mono); font-size: 11px; color: #10B981;">{trows}</div>
-                </div>
-                <div style="font-family: var(--font-mono); font-size: 11px; color: #94A3B8; margin-top: 6px; line-height: 1.4;">{tcols}</div>
-            </div>
-            """, unsafe_allow_html=True)
+        conn_url_input = st.text_input(
+            "Connection URL",
+            placeholder=placeholder_map[db_type_choice],
+            key="custom_db_url_input",
+            type="password",
+            help="Your password will be masked automatically and never stored in plain text."
+        )
+
+        btn_col1, btn_col2, btn_col3 = st.columns([1.5, 1.5, 3])
+        with btn_col1:
+            if st.button("🧪 Test Connection", key="btn_test_conn", use_container_width=True):
+                if not conn_url_input:
+                    st.error("Please enter a connection URL first.")
+                else:
+                    try:
+                        temp_mgr = DatabaseConnectionManager(conn_url_input, name="TestConn")
+                        ok, msg = temp_mgr.test_connection()
+                        if ok:
+                            st.success(f"✅ {msg}")
+                        else:
+                            st.error(f"❌ {msg}")
+                        temp_mgr.dispose()
+                    except Exception as e:
+                        st.error(f"❌ Connection error: {e}")
+
+        with btn_col2:
+            if st.button("🔗 Connect & Activate", key="btn_activate_conn", use_container_width=True):
+                if not conn_url_input:
+                    st.error("Please enter a connection URL first.")
+                else:
+                    try:
+                        new_mgr = DatabaseConnectionManager(conn_url_input, name=f"Custom {db_type_choice} DB")
+                        ok, msg = new_mgr.test_connection()
+                        if ok:
+                            st.session_state.db_manager = new_mgr
+                            st.success(f"✅ Successfully switched active database to {db_type_choice}!")
+                            st.rerun()
+                        else:
+                            st.error(f"❌ Could not connect: {msg}")
+                    except Exception as e:
+                        st.error(f"❌ Activation error: {e}")
+
+        with btn_col3:
+            if st.button("🔄 Reset to Olist Demo Database", key="btn_reset_demo", use_container_width=True):
+                _, olist_url = get_default_olist_engine()
+                st.session_state.db_manager = DatabaseConnectionManager(olist_url, name="Olist Brazilian E-Commerce (Demo)")
+                st.info("Reset to default Olist Demo SQLite database.")
+                st.rerun()
+
+    # Schema Inspector
+    st.markdown("<div class='panel-title' style='margin: 18px 0 12px 0;'>📊 Active Database Schema Tables</div>", unsafe_allow_html=True)
+    
+    try:
+        import sqlalchemy
+        inspector = sqlalchemy.inspect(st.session_state.db_manager.engine)
+        table_names = inspector.get_table_names()
+        
+        if not table_names:
+            st.info("No tables detected in the connected database.")
+        else:
+            scol1, scol2, scol3 = st.columns(3)
+            for idx, tname in enumerate(table_names):
+                col_target = [scol1, scol2, scol3][idx % 3]
+                cols = inspector.get_columns(tname)
+                col_str = ", ".join([c["name"] for c in cols[:6]])
+                if len(cols) > 6:
+                    col_str += f", ... (+{len(cols)-6} more)"
+                
+                # Fast row count estimate
+                try:
+                    with st.session_state.db_manager.engine.connect() as conn:
+                        row_cnt = conn.execute(sqlalchemy.text(f"SELECT COUNT(*) FROM [{tname}]" if st.session_state.db_manager.db_type == DatabaseType.SQLITE else f"SELECT COUNT(*) FROM {tname}")).scalar()
+                    row_str = f"{row_cnt:,} records"
+                except Exception:
+                    row_str = f"{len(cols)} columns"
+
+                with col_target:
+                    st.markdown(f"""
+                    <div class="kpi-box" style="margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                            <div style="font-family: var(--font-title); font-weight: 700; color: #E879F9; font-size: 15px;">📁 {tname}</div>
+                            <div style="font-family: var(--font-mono); font-size: 11px; color: #10B981;">{row_str}</div>
+                        </div>
+                        <div style="font-family: var(--font-mono); font-size: 11px; color: #94A3B8; margin-top: 6px; line-height: 1.4;">{col_str}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+    except Exception as e:
+        st.warning(f"Could not inspect tables: {e}")
 
 
 # ==============================================================================
