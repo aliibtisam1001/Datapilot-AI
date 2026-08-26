@@ -18,7 +18,11 @@ class MultiDatabaseManager:
         self._init_default_demo()
 
     def _init_default_demo(self) -> None:
-        """Initialize the default fallback Olist demo database."""
+        """Initialize default database connections (custom env var if present, plus fallback Olist demo)."""
+        import os
+        custom_env_url = os.getenv("DATABASE_URL") or os.getenv("DEFAULT_DB_URL")
+        
+        # 1. Fallback Olist Demo SQLite
         try:
             _, olist_url = get_default_olist_engine()
             demo_mgr = DatabaseConnectionManager(olist_url, name="Olist Brazilian E-Commerce (Demo)")
@@ -26,6 +30,15 @@ class MultiDatabaseManager:
             self._active_name = "Olist E-Commerce (Demo)"
         except Exception:
             pass
+
+        # 2. Custom environment database if specified
+        if custom_env_url:
+            try:
+                custom_mgr = DatabaseConnectionManager(custom_env_url, name="Production Database")
+                self.register_database("Production Database", custom_mgr)
+                self._active_name = "Production Database"
+            except Exception:
+                pass
 
     def register_database(self, name: str, manager_or_url: Any) -> DatabaseConnectionManager:
         """Register a new named database connection."""
