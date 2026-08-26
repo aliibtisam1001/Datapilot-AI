@@ -1,6 +1,6 @@
 """
 Database Package for DataPilot AI.
-Exports DatabaseConnectionManager, EnginePool, DatabaseType, and exception classes.
+Exports DatabaseConnectionManager, EnginePool, SchemaIntrospector, SchemaCache, and Schema Data Models.
 """
 from app.database.pool import EnginePool
 from app.database.connection import (
@@ -17,8 +17,28 @@ from app.database.connection import (
     normalize_connection_url,
     get_default_olist_engine,
 )
+from app.database.schema import (
+    ColumnInfo,
+    ForeignKeyInfo,
+    IndexInfo,
+    TableSchema,
+    DatabaseRelationship,
+    DatabaseSchema,
+)
+from app.database.introspector import (
+    SchemaIntrospector,
+    get_tables,
+    get_table_schema,
+    get_database_schema,
+    get_relationships,
+)
+from app.database.cache import (
+    SchemaCache,
+    get_cached_schema,
+)
 
 __all__ = [
+    # Connection & Pooling
     "EnginePool",
     "DatabaseConnectionManager",
     "DatabaseType",
@@ -32,4 +52,23 @@ __all__ = [
     "detect_database_type",
     "normalize_connection_url",
     "get_default_olist_engine",
+    
+    # Schema Models
+    "ColumnInfo",
+    "ForeignKeyInfo",
+    "IndexInfo",
+    "TableSchema",
+    "DatabaseRelationship",
+    "DatabaseSchema",
+    
+    # Introspection
+    "SchemaIntrospector",
+    "get_tables",
+    "get_table_schema",
+    "get_database_schema",
+    "get_relationships",
+    
+    # Cache
+    "SchemaCache",
+    "get_cached_schema",
 ]

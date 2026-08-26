@@ -1170,46 +1170,80 @@ elif "Sources" in st.session_state.current_nav:
                 st.info("Reset to default Olist Demo SQLite database.")
                 st.rerun()
 
-    # Schema Inspector
-    st.markdown("<div class='panel-title' style='margin: 18px 0 12px 0;'>📊 Active Database Schema Tables</div>", unsafe_allow_html=True)
-    
-    try:
-        import sqlalchemy
-        inspector = sqlalchemy.inspect(st.session_state.db_manager.engine)
-        table_names = inspector.get_table_names()
-        
-        if not table_names:
-            st.info("No tables detected in the connected database.")
-        else:
-            scol1, scol2, scol3 = st.columns(3)
-            for idx, tname in enumerate(table_names):
-                col_target = [scol1, scol2, scol3][idx % 3]
-                cols = inspector.get_columns(tname)
-                col_str = ", ".join([c["name"] for c in cols[:6]])
-                if len(cols) > 6:
-                    col_str += f", ... (+{len(cols)-6} more)"
-                
-                # Fast row count estimate
-                try:
-                    with st.session_state.db_manager.engine.connect() as conn:
-                        row_cnt = conn.execute(sqlalchemy.text(f"SELECT COUNT(*) FROM [{tname}]" if st.session_state.db_manager.db_type == DatabaseType.SQLITE else f"SELECT COUNT(*) FROM {tname}")).scalar()
-                    row_str = f"{row_cnt:,} records"
-                except Exception:
-                    row_str = f"{len(cols)} columns"
+    # Schema Overview & Inspector using SchemaCache
+    db_schema = None
+    if st.session_state.db_manager and st.session_state.db_manager.engine:
+        from app.database import get_cached_schema, SchemaCache
+        try:
+            db_schema = get_cached_schema(
+                st.session_state.db_manager.engine,
+                st.session_state.db_manager.normalized_url
+            )
+        except Exception as e:
+            st.warning(f"Could not load schema: {e}")
 
-                with col_target:
-                    st.markdown(f"""
-                    <div class="kpi-box" style="margin-bottom: 12px;">
-                        <div style="display: flex; align-items: center; justify-content: space-between;">
-                            <div style="font-family: var(--font-title); font-weight: 700; color: #E879F9; font-size: 15px;">📁 {tname}</div>
-                            <div style="font-family: var(--font-mono); font-size: 11px; color: #10B981;">{row_str}</div>
-                        </div>
-                        <div style="font-family: var(--font-mono); font-size: 11px; color: #94A3B8; margin-top: 6px; line-height: 1.4;">{col_str}</div>
+    total_tbls = len(db_schema.tables) if db_schema else 0
+    total_rels = len(db_schema.relationships) if db_schema else 0
+
+    # Schema Stats & Controls Header
+    s_col1, s_col2 = st.columns([3, 1])
+    with s_col1:
+        st.markdown(f"<div class='panel-title' style='margin: 18px 0 12px 0;'>📊 Database Schema Overview ({total_tbls} Tables · {total_rels} Relationships)</div>", unsafe_allow_html=True)
+    with s_col2:
+        if st.button("🔄 Refresh Schema Cache", key="btn_refresh_schema", use_container_width=True):
+            if st.session_state.db_manager and st.session_state.db_manager.normalized_url:
+                SchemaCache.invalidate(st.session_state.db_manager.normalized_url)
+                st.success("Schema cache refreshed!")
+                st.rerun()
+
+    if db_schema and db_schema.tables:
+        # Schema Tables Grid
+        scol1, scol2, scol3 = st.columns(3)
+        for idx, (tname, tschema) in enumerate(db_schema.tables.items()):
+            col_target = [scol1, scol2, scol3][idx % 3]
+            
+            # Format columns with PK indicators
+            col_badges = []
+            for c in tschema.columns[:6]:
+                pk_mark = "🔑 " if c.primary_key else ""
+                col_badges.append(f"{pk_mark}{c.name} ({c.type})")
+            
+            col_str = ", ".join(col_badges)
+            if len(tschema.columns) > 6:
+                col_str += f", ... (+{len(tschema.columns)-6} more)"
+            
+            # Row count string
+            row_str = f"{tschema.row_count_estimate:,} records" if tschema.row_count_estimate is not None else f"{len(tschema.columns)} cols"
+
+            with col_target:
+                st.markdown(f"""
+                <div class="kpi-box" style="margin-bottom: 12px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <div style="font-family: var(--font-title); font-weight: 700; color: #E879F9; font-size: 15px;">📁 {tname}</div>
+                        <div style="font-family: var(--font-mono); font-size: 11px; color: #10B981;">{row_str}</div>
                     </div>
-                    """, unsafe_allow_html=True)
-
-    except Exception as e:
-        st.warning(f"Could not inspect tables: {e}")
+                    <div style="font-family: var(--font-mono); font-size: 11px; color: #94A3B8; margin-top: 6px; line-height: 1.4;">{col_str}</div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Expandable detailed schema
+                with st.expander(f"Inspect {tname} Schema", expanded=False):
+                    col_df = pd.DataFrame([
+                        {
+                            "Column": c.name,
+                            "Type": c.type,
+                            "Primary Key": "✅ PK" if c.primary_key else "",
+                            "Nullable": "Yes" if c.nullable else "No"
+                        }
+                        for c in tschema.columns
+                    ])
+                    st.dataframe(col_df, use_container_width=True, hide_index=True)
+                    if tschema.foreign_keys:
+                        st.markdown("**Foreign Keys:**")
+                        for fk in tschema.foreign_keys:
+                            st.markdown(f"- `{', '.join(fk.constrained_columns)}` ──► `{fk.referred_table}({', '.join(fk.referred_columns)})`")
+    else:
+        st.info("No tables detected in the connected database.")
 
 
 # ==============================================================================
