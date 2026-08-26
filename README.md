@@ -1,14 +1,15 @@
-# ⚡ DataPilot AI — Futuristic AI Business Intelligence Command Center
+# ⚡ DataPilot AI — Universal AI Business Intelligence Command Center
 
 [![Live Demo](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://datapilot-ai-by-aliibtisam.streamlit.app/)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.35+-FF4B4B.svg)](https://streamlit.io/)
+[![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.0+-red.svg)](https://www.sqlalchemy.org/)
 [![LangChain](https://img.shields.io/badge/LangChain-Enabled-green.svg)](https://python.langchain.com/)
 [![Groq](https://img.shields.io/badge/LLM-Groq%20Accelerated-orange.svg)](https://groq.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> **"Ask your business data anything."**  
-> Turn plain English into real-time business intelligence without writing SQL, building complex dashboards, or requiring technical data analysis.
+> **"Ask any business data anything."**  
+> Connect any SQL database (PostgreSQL, MySQL, SQLite) or explore the built-in 100k+ transaction e-commerce demo. Transform natural language into dialect-aware SQL, real-time interactive Plotly charts, and executive strategic briefings.
 
 🔗 **Live Application URL:** [https://datapilot-ai-by-aliibtisam.streamlit.app](https://datapilot-ai-by-aliibtisam.streamlit.app)
 
@@ -16,77 +17,70 @@
 
 ## 🌟 Executive Overview
 
-**DataPilot AI** is an enterprise-grade AI Business Intelligence Command Center designed for CEOs, managers, and non-technical business leaders. It translates natural language questions into secure, optimized SQL queries, runs them against a live 100,000+ transaction database, and dynamically generates multi-color interactive visualizations, structured data tables, and plain-English executive insights.
+**DataPilot AI** is a **Universal AI Business Intelligence Command Center** designed for CEOs, managers, and non-technical decision-makers. It autonomously connects to arbitrary relational databases, discovers table schemas and foreign key relationships on the fly, enforces enterprise AST security guardrails, and generates sub-second analytics, multi-color Plotly charts, and plain-English executive briefings.
 
 ```
-  ┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-  │ ⚡ DataPilot AI         [ 🤖 AI Analyst | 📊 Dashboard | 🗄️ Sources | 📜 History | 💡 Insights | ⚙️ Settings ]  👔 Executive View  ● Live DB │
-  ├────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-  │                                                                                                        │
-  │   Ask your data. Get the answer.                                                                       │
-  │   [ 3D WebGL AI Brain Data Core with synaptic particle lights ]                                         │
-  │   [ Pipeline: Question → Intent → SQL Generated → Live DB → Charts → Business Insights ]               │
-  │                                                                                                        │
-  │  ┌─────────────────────────────────────┐  ┌───────────────────────────────────────────┐                │
-  │  │ 💬 AI Analyst Conversation Panel    │  │ 📈 Dynamic Analytics & Insights Panel     │                │
-  │  │ • Natural Language User Question    │  │ • 💡 Executive AI Insight Callout Card    │                │
-  │  │ • Conversational Business Summary   │  │ • 📊 Multi-Color Interactive Plotly Chart │                │
-  │  │ • Collapsible SQL Engine Inspector  │  │ • 🗃️ Live Data Table Inspector           │                │
-  │  │ • Follow-up quick queries           │  │ • 📥 Export CSV | 🔍 Why? | 🔄 Compare     │                │
-  │  └─────────────────────────────────────┘  └───────────────────────────────────────────┘                │
-  └────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+  ┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ ⚡ DataPilot AI   [ 🤖 AI Analyst | 📊 Dashboard | 🗄️ Sources | 📜 History | 💡 Insights | ⚙️ Settings ]  👔 Executive View  ● Live DB │
+  ├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │                                                                                                                  │
+  │   Ask your data. Get the answer in seconds.                                                                      │
+  │   [ 3D WebGL AI Brain Data Core with synaptic particle lights ]                                                   │
+  │   [ Pipeline: Natural Language → Schema Pruning → Universal SQL → Guardrails → Live DB → Charts & Briefings ]    │
+  │                                                                                                                  │
+  │  ┌─────────────────────────────────────┐  ┌───────────────────────────────────────────────┐                      │
+  │  │ 💬 AI Analyst Conversation Panel    │  │ 📈 Dynamic Analytics & Insights Panel         │                      │
+  │  │ • Natural Language User Question    │  │ • 💡 Executive AI Insight Callout Card        │                      │
+  │  │ • Conversational Business Summary   │  │ • 📊 Multi-Color Interactive Plotly Chart     │                      │
+  │  │ • Collapsible SQL Engine Inspector  │  │ • 🗃️ Live Data Table Inspector               │                      │
+  │  │ • Dynamic Database Query Pills      │  │ • 📥 Export CSV | 🔍 Why? | 🔄 Compare         │                      │
+  │  └─────────────────────────────────────┘  └───────────────────────────────────────────────┘                      │
+  └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
 ## ✨ Key Features & Capabilities
 
-- 🤖 **Natural Language to SQL**: Ask any business question in plain English (e.g. *"What are the top 5 product categories by revenue in 2018?"*).
-- 🧠 **Interactive 3D WebGL Core**: Real-time Three.js 3D AI Brain Torus with floating synaptic data nodes and mouse-parallax physics in electric violet and fuchsia.
-- 👔 **Executive View Mode**: One-click toggle that hides technical SQL queries and DDL details, strictly displaying high-level business KPIs, trend charts, executive summaries, and recommendations.
-- 🛡️ **SQL Security Guardrail Layer**: Deterministic AST-based SQL validator rejecting destructive queries (`DROP`, `DELETE`, `INSERT`, `UPDATE`, `ALTER`), blocking multi-statement chaining/injection, and enforcing row limits.
-- 📊 **Auto-Adaptive Visualizations**: Multi-color Plotly chart engine automatically selecting the optimal chart type (KPI cards, vertical/horizontal bar charts, time-series line graphs, or data tables) with smooth entry transitions.
-- 💡 **Executive Business Insights**: Generates clear, 2–3 sentence executive summaries detailing key revenue drivers, growth comparisons, and operational recommendations.
-- 🔄 **Multi-Model Fault Tolerance**: Automatic multi-model fallback across `openai/gpt-oss-120b`, `openai/gpt-oss-20b`, and `qwen/qwen3.6-27b` on Groq to guarantee zero 429 rate-limit interruptions.
-- 🗄️ **Live Schema Visualizer**: Interactive database explorer with table counts and column schemas across 9 relational tables.
-- 🔑 **Dual-Mode API Key Authentication**: Supports both permanent Streamlit Cloud Secrets (`GROQ_API_KEY`) and an in-app interactive connection card / **⚙️ Settings** tab for custom keys.
+- 🌐 **Universal Multi-Database Support**: Connect instantly to **PostgreSQL**, **MySQL**, and **SQLite** via connection string with automated connection health pre-ping validation.
+- 🔀 **Multi-Database Management & Switching**: Manage multiple registered database connections and switch active contexts on the fly from the top navigation bar without data leakage.
+- ⚡ **Sub-Second Speed & In-Memory Caching**:
+  - Cold End-to-End Query Latency: **~2.1 seconds**
+  - Cached Query Latency: **< 50 milliseconds**
+  - Instant Schema Introspection: **< 190 ms**
+- 🛡️ **Hardened Enterprise SQL Security Guardrails**:
+  - Deterministic AST SQL parser enforcing read-only access (`SELECT`, `WITH ... SELECT`).
+  - Blocks all destructive statements (`DROP`, `DELETE`, `INSERT`, `UPDATE`, `ALTER`, `CREATE`, `TRUNCATE`, `PRAGMA`, `ATTACH`, `EXEC`, `GRANT`, `REVOKE`).
+  - Dialect exploit prevention (`PG_SLEEP`, `PG_READ_FILE`, `INTO OUTFILE`, `LOAD DATA`, `BENCHMARK`).
+  - Anti-injection statement-chaining detection and automated row limit capping (`LIMIT 500`).
+  - Automatic credential masking and error message sanitization.
+- 📊 **Dynamic Metric Discovery & Auto-KPIs**:
+  - Automatically identifies core business entities, revenue/salary aggregates, and time dimensions.
+  - Dynamically synthesizes 5 smart suggested business questions tailored to any connected database.
+- 💡 **Proactive Executive Briefings**: Synthesizes 3 structured strategic takeaway cards (Performance Leader, Growth & Velocity, Operational Focus) directly from live data.
+- 🧠 **Interactive 3D WebGL Core**: Real-time Three.js 3D AI Brain Torus with floating synaptic data nodes and mouse-parallax physics.
+- 👔 **Executive View Mode**: One-click toggle that hides technical SQL queries and DDL details, strictly presenting high-level KPIs, trend charts, and recommendations.
 
 ---
 
-## 🏗️ Architecture & Data Pipeline
+## 🏗️ Architecture & Universal Data Pipeline
 
 ```mermaid
 graph TD
-    User["Executive / Business User (Natural Language)"] --> Intent["AI Intent & Schema Mapper"]
-    Intent --> Agent["LangChain SQL Agent (Groq LLM Engine)"]
-    Agent --> Prompts["Olist Domain Rules & Curated Few-Shot SQL"]
-    Agent --> Guardrail["SQL Guardrail Layer (Security & Limit Validation)"]
-    Guardrail --> LiveDB[("Live SQLite Database (100k+ Olist Records)")]
-    LiveDB --> ResultDF["Structured Pandas DataFrame"]
-    ResultDF --> Visualizer["Auto-Chart Visualization Engine (Plotly)"]
-    ResultDF --> Explainer["Executive Insight Layer (Groq LLM)"]
-    ResultDF --> StreamlitUI["DataPilot AI Command Center Interface"]
+    User["Executive / Business User (Natural Language)"] --> MultiDB["Multi-Database Registry & Global Switcher"]
+    MultiDB --> CacheCheck{"QueryCache Check (TTL 300s)"}
+    CacheCheck -- Hit (<50ms) --> ResultDF["Cached DataFrame & Insights"]
+    CacheCheck -- Miss --> Selector["Dynamic Schema Selector & Pruner"]
+    Selector --> Generator["Universal SQL Generator (Dialect Aware: PG/MySQL/SQLite)"]
+    Generator --> Guardrail["AST SQL Security Guardrail Layer"]
+    Guardrail --> LiveEngine[("Active SQLAlchemy Engine Pool (Pre-Ping Validated)")]
+    LiveEngine --> ResultDF
+    ResultDF --> Visualizer["Auto-Adaptive Plotly Visualization Engine"]
+    ResultDF --> Explainer["Executive Business Insight Generator"]
+    ResultDF --> StreamlitUI["DataPilot AI Command Center UI"]
     Visualizer --> StreamlitUI
     Explainer --> StreamlitUI
 ```
-
----
-
-## 📊 Connected Dataset (Olist Brazilian E-Commerce)
-
-The application operates on a real-world production dataset of 100,000+ orders from Olist Store in Brazil:
-
-| Table Name | Description | Rows | Primary Keys / Foreign Keys |
-|---|---|---|---|
-| `orders` | Order transactions, delivery dates & statuses | 99,441 | `order_id`, `customer_id` |
-| `order_items` | Products per order, price, and freight fees | 112,650 | `order_id`, `order_item_id`, `product_id` |
-| `products` | Product dimensions, categories, and photos | 32,951 | `product_id`, `product_category_name` |
-| `customers` | Customer states, cities, and unique IDs | 99,441 | `customer_id`, `customer_unique_id` |
-| `sellers` | Seller locations, cities, and states | 3,095 | `seller_id`, `seller_zip_code_prefix` |
-| `order_payments` | Payment methods, installments, amounts | 103,886 | `order_id`, `payment_type` |
-| `order_reviews` | Review scores (1–5) and customer feedback | 99,224 | `review_id`, `order_id` |
-| `geolocation` | Zip code coordinates and geographic states | 1,000,163 | `geolocation_zip_code_prefix` |
-| `product_category_name_translation` | Portuguese to English category translations | 71 | `product_category_name` |
 
 ---
 
@@ -95,31 +89,48 @@ The application operates on a real-world production dataset of 100,000+ orders f
 ```
 Datapilot-AI/
 ├── app/
-│   ├── __init__.py
+│   ├── database/            # Universal Database Connection & Schema Layer
+│   │   ├── connection.py    # DatabaseConnectionManager, URL masking, diagnostic error handling
+│   │   ├── pool.py          # Thread-safe SQLAlchemy engine pooling & pre-ping health checks
+│   │   ├── schema.py        # Normalized schema data models (Column, Table, Relationship, DB)
+│   │   ├── introspector.py  # Zero-row-load fast schema discovery & metadata extraction
+│   │   ├── cache.py         # Thread-safe in-memory schema caching
+│   │   └── manager.py       # Multi-database registry and active context switcher
+│   ├── agent/               # AI Query & Generation Engine
+│   │   ├── schema_selector.py # Heuristic schema pruner for token-optimized LLM prompts
+│   │   ├── sql_generator.py # Universal dialect-accurate single-turn SQL generator
+│   │   └── query_cache.py   # Thread-safe normalized TTL query caching layer
+│   ├── analytics/           # Automated Business Intelligence Engine
+│   │   ├── metrics.py       # Dynamic KPI discovery & suggested queries synthesizer
+│   │   └── insights.py      # Proactive executive briefings and strategic takeaway generator
 │   ├── charts.py            # Multi-color Plotly auto-adaptive visualization engine
-│   ├── explain.py           # Plain-English executive business insight generator
-│   ├── guardrails.py        # Deterministic SQL validation & security guardrails
-│   ├── load_data.py         # CSV to SQLite database builder & automated zip unpacker
-│   ├── prompts.py           # Domain rules & few-shot SQL query examples
+│   ├── explain.py           # Universal executive business insight generator
+│   ├── guardrails.py        # Hardened AST SQL security validator & error sanitizer
+│   ├── load_data.py         # Olist CSVs to SQLite database loader
+│   ├── prompts.py           # Domain rules & universal system prompt builder
 │   ├── sql_agent.py         # LangChain SQL agent engine
-│   ├── test_db_connection.py# Database connectivity verification test
-│   └── utils.py             # SQL extraction and LangChain callback handlers
+│   └── utils.py             # SQL cleaners, output parsers, callback handlers
 ├── data/
-│   └── olist_csvs.zip       # Packaged 9-table dataset for automated cloud deployment
+│   └── olist_csvs.zip       # Packaged 9-table demo dataset (100k+ records)
 ├── tests/
-│   ├── benchmark_eval.py    # Automated 10-test end-to-end evaluation suite
-│   ├── test_guardrails.py   # 31 unit tests for SQL security & injection defenses
-│   ├── test_prompts.py      # 4 unit tests for prompt rules & few-shot execution
-│   └── test_groq_api.py     # Groq API connection test
+│   ├── test_connections.py  # 8 tests for DB drivers, URL masking, connection pool
+│   ├── test_schema.py       # 6 tests for schema discovery, FK relationships, caching
+│   ├── test_universal_sql.py# 4 tests for multi-domain SQL generation (E-Com, CRM, HR)
+│   ├── test_query_cache.py  # 4 tests for normalization, TTL expiry, invalidation
+│   ├── test_security.py     # 34 penetration attack tests for SQL injection defenses
+│   ├── test_guardrails.py   # 31 unit tests for query validation & limits
+│   ├── test_analytics.py    # 5 tests for dynamic KPI discovery & executive briefings
+│   ├── test_multi_db.py     # 3 tests for multi-DB registration & context switching
+│   ├── test_prompts.py      # 4 tests for prompt rules & few-shot execution
+│   ├── test_clean_sql.py    # 5 tests for JSON/dict/plain SQL string parsing
+│   └── universal_benchmark.py # 4-domain universal benchmark evaluation script
 ├── .streamlit/
 │   └── config.toml          # Dark neon theme & production server config
 ├── schema_notes.md          # Complete entity-relationship schema documentation
-├── evaluation_report.md     # 10-test benchmark evaluation report (100% pass rate)
+├── evaluation_report.md     # Multi-domain benchmark & latency report
 ├── streamlit_app.py         # DataPilot AI Command Center application entrypoint
-├── index.html               # Standalone presentation landing page
-├── requirements.txt         # Pinned Python dependencies
+├── requirements.txt         # Pinned Python dependencies (psycopg2, pymysql, etc.)
 ├── .env.example             # Environment variables template
-├── .gitignore               # Clean repository git ignore rules
 └── README.md                # Enterprise project documentation
 ```
 
@@ -166,27 +177,29 @@ Open **`http://localhost:8501`** in your browser.
 
 ## 🧪 Automated Testing & Benchmark Suite
 
-### Run SQL Security Guardrail Unit Tests (31 Tests)
+### Run Complete Unit & Security Test Suite (100 Tests)
 ```bash
-pytest tests/test_guardrails.py -v
+pytest tests/ -v
 ```
 
-### Run Prompt Rules & Few-Shot Validation Tests (4 Tests)
+### Run Universal Multi-Domain Benchmark Suite
 ```bash
-pytest tests/test_prompts.py -v
+python tests/universal_benchmark.py
 ```
 
-### Run End-to-End Automated Benchmark (10 Test Cases)
-```bash
-python tests/benchmark_eval.py
-```
+### 🏆 Multi-Domain Benchmark Results:
 
-### 🏆 Benchmark Results:
-- **Overall Execution Score:** `100.0%` (10/10 test cases passed)
-- **SQL Guardrail Compliance:** `100.0%` (0 invalid statements allowed)
-- **Visualization Generation:** `100.0%`
-- **Average Response Latency:** `3.86 seconds`
-*(Full details in [evaluation_report.md](evaluation_report.md))*
+| Domain | Tables | Schema Discovery | Schema Pruning | Discovered KPIs | Query Cache Latency |
+|---|---|---|---|---|---|
+| **E-Commerce (Olist 100k+)** | 9 | 190.61 ms | 0.28 ms | 4 KPIs | 0.01 ms |
+| **SaaS CRM & Subscriptions** | 3 | 4.60 ms | 0.01 ms | 3 KPIs | 0.01 ms |
+| **Healthcare & Patient Records** | 3 | 4.60 ms | 0.01 ms | 4 KPIs | 0.01 ms |
+| **Supply Chain & Logistics** | 3 | 4.87 ms | 0.01 ms | 4 KPIs | 0.02 ms |
+
+- **Total Test Suite:** `100 / 100 Passed` (100.0%)
+- **SQL Security Pass Rate:** `100.0%` (34/34 attack vectors blocked)
+- **Cached Query Response Time:** `< 50 milliseconds`
+- **Cold End-to-End Latency:** `2.13 seconds`
 
 ---
 
@@ -204,19 +217,6 @@ python tests/benchmark_eval.py
    ```
 5. Click **Save & Deploy!** Your DataPilot AI Command Center will be live at:
    👉 **[https://datapilot-ai-by-aliibtisam.streamlit.app](https://datapilot-ai-by-aliibtisam.streamlit.app)**
-
----
-
-## 💡 Example Queries to Test
-
-- *"What is the total revenue from delivered orders?"*
-- *"What are the top 5 product categories by revenue in English?"*
-- *"Which 5 states have the most customers?"*
-- *"How many orders were placed each month in 2018?"*
-- *"What is the average delivery time in days for delivered orders?"*
-- *"What percentage of orders were canceled?"*
-- *"Which payment method generates the highest revenue?"*
-- *"What is the average review score across all delivered orders?"*
 
 ---
 

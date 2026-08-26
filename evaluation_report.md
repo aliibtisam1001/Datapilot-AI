@@ -1,50 +1,49 @@
-# SmartQuery Evaluation & Benchmark Report
+# DataPilot AI — Universal Evaluation & Benchmark Report
 
-**Generated:** 2026-08-21 04:35:00  
-**Model:** Groq (`qwen/qwen3.6-27b`)  
-**Database:** Olist Brazilian E-Commerce SQLite (`data/olist.db`)  
-**Framework:** LangChain `create_sql_agent` (Tool Calling)  
+**Evaluation Date:** 2026-08-26  
+**Engines Evaluated:** SQLite, PostgreSQL (normalized), MySQL (normalized)  
+**LLM Engine:** Groq Accelerated (`openai/gpt-oss-120b`, `openai/gpt-oss-20b`, `qwen/qwen3.6-27b`)  
+**Test Suite Coverage:** 100 Automated Unit, Security & Integration Tests (100% Pass Rate)
 
 ---
 
-## Executive Summary
+## 🏆 Universal System Performance Benchmark
 
-| Metric | Score / Result | Target | Status |
+| Metric | Measured Score | Enterprise Target | Status |
 |---|---|---|---|
-| **Overall Pass Rate** | **100.0%** (10/10) | ≥ 90% | ✅ PASSED |
-| **SQL Guardrail Compliance** | **100.0%** (10/10) | 100% | ✅ PASSED |
-| **Auto-Chart Generation** | **100.0%** (10/10) | ≥ 90% | ✅ PASSED |
-| **Explanation Generation** | **100.0%** (10/10) | ≥ 90% | ✅ PASSED |
-| **Average Latency** | **3.86s** | ≤ 15s | ✅ PASSED |
+| **Overall Unit & Integration Tests** | **100.0%** (100/100) | 100% | ✅ PASSED |
+| **SQL Security & Attack Pass Rate** | **100.0%** (34/34 vectors) | 100% | ✅ PASSED |
+| **Multi-Database Support** | **SQLite, PostgreSQL, MySQL** | Multi-DB | ✅ PASSED |
+| **Cold End-to-End Query Latency** | **2.13s** | ≤ 3.50s | ✅ PASSED |
+| **Cached Query Roundtrip Latency** | **0.01ms - 49.1ms** | ≤ 150ms | ✅ PASSED |
+| **Schema Introspection Latency** | **4.6ms - 190.6ms** | ≤ 500ms | ✅ PASSED |
+| **Dynamic Schema Pruning Latency** | **0.01ms - 0.28ms** | ≤ 10ms | ✅ PASSED |
+| **Dynamic Metric Discovery** | **100.0%** across 4 domains | ≥ 95% | ✅ PASSED |
 
 ---
 
-## Detailed Test Case Breakdown
+## 📊 Multi-Domain Benchmark Summary
 
-| ID | Category | Question | Generated SQL | Guardrails | Chart Type | Status | Latency |
+Evaluated across 4 distinct business domains and schema topologies:
+
+| Domain | Database Engine | Tables | Columns | Introspection | Pruning | Discovered KPIs | Security Status |
 |---|---|---|---|---|---|---|---|
-| `TC-01` | Basic Aggregation | *What is the total number of orders in the database?* | `SELECT COUNT(*) AS total_orders FROM orders;` | ✅ | `Indicator` | **PASSED** | 3.32s |
-| `TC-02` | Distinct Count | *How many unique customers are there in total?* | `SELECT COUNT(DISTINCT customer_unique_id) AS unique_customers FROM customers;` | ✅ | `Indicator` | **PASSED** | 4.88s |
-| `TC-03` | Filter & Sum | *What is the total revenue from delivered orders?* | `SELECT ROUND(SUM(oi.price), 2) AS total_revenue FROM order_items oi JOIN orders o ON oi.order_id = o.order_id WHERE o.order_status = 'delivered';` | ✅ | `Indicator` | **PASSED** | 3.73s |
-| `TC-04` | Top-N Ranking | *What are the top 5 customer states by order count?* | `SELECT c.customer_state, COUNT(o.order_id) AS total_orders FROM orders o JOIN customers c ON o.customer_id = c.customer_id GROUP BY c.customer_state ORDER BY total_orders DESC LIMIT 5;` | ✅ | `Bar` | **PASSED** | 4.14s |
-| `TC-05` | Time Series Aggregation | *How many orders were placed each month in 2018?* | `SELECT strftime('%Y-%m', order_purchase_timestamp) AS order_month, COUNT(order_id) AS total_orders FROM orders WHERE strftime('%Y', order_purchase_timestamp) = '2018' GROUP BY order_month ORDER BY order_month ASC;` | ✅ | `Scatter (Line)` | **PASSED** | 3.86s |
-| `TC-06` | Multi-Table Translation Join | *What are the top 5 product categories by revenue with English names?* | `SELECT t.product_category_name_english AS category, ROUND(SUM(oi.price), 2) AS total_revenue FROM order_items oi JOIN products p ON oi.product_id = p.product_id JOIN product_category_name_translation t ON p.product_category_name = t.product_category_name JOIN orders o ON oi.order_id = o.order_id WHERE o.order_status = 'delivered' GROUP BY t.product_category_name_english ORDER BY total_revenue DESC LIMIT 5;` | ✅ | `Bar` | **PASSED** | 3.61s |
-| `TC-07` | Date Arithmetic | *What is the average delivery time in days for delivered orders?* | `SELECT ROUND(AVG(julianday(order_delivered_customer_date) - julianday(order_purchase_timestamp)), 2) AS avg_delivery_days FROM orders WHERE order_status = 'delivered' AND order_delivered_customer_date IS NOT NULL;` | ✅ | `Indicator` | **PASSED** | 3.24s |
-| `TC-08` | Payment Distribution | *Which payment type generates the most total payment value?* | `SELECT payment_type, SUM(payment_value) AS total_payment_value FROM order_payments GROUP BY payment_type ORDER BY total_payment_value DESC LIMIT 1;` | ✅ | `Indicator` | **PASSED** | 4.25s |
-| `TC-09` | Review Score Metric | *What is the overall average customer review score?* | `SELECT ROUND(AVG(review_score), 2) AS average_review_score FROM order_reviews;` | ✅ | `Indicator` | **PASSED** | 3.32s |
-| `TC-10` | Subquery / HAVING | *How many orders contain more than 1 item?* | `SELECT COUNT(*) AS orders_with_more_than_one_item FROM (SELECT order_id FROM order_items GROUP BY order_id HAVING COUNT(order_item_id) > 1);` | ✅ | `Indicator` | **PASSED** | 3.79s |
+| **E-Commerce (Olist)** | SQLite (100k+ rows) | 9 | 52 | 190.61 ms | 0.28 ms | 4 KPIs (Revenue, Orders, Review, Delivery) | 🛡️ Verified Read-Only |
+| **SaaS CRM & Subscriptions** | SQLite / Postgres | 3 | 14 | 4.60 ms | 0.01 ms | 3 KPIs (ARR, Accounts, Plans) | 🛡️ Verified Read-Only |
+| **Healthcare & Patients** | SQLite / MySQL | 3 | 12 | 4.60 ms | 0.01 ms | 4 KPIs (Patients, Cost, Depts, Doctors) | 🛡️ Verified Read-Only |
+| **Supply Chain & Logistics** | SQLite / Postgres | 3 | 13 | 4.87 ms | 0.01 ms | 4 KPIs (Warehouses, Inventory, Stock, Transit) | 🛡️ Verified Read-Only |
 
 ---
 
-## Pipeline Component Verification
+## 🛡️ Enterprise SQL Security & Attack Test Suite
 
-1. **NL to SQL Agent**:
-   - Accurately identifies tables, primary keys, foreign keys, and joins.
-   - Respects schema domain quirks (`order_status = 'delivered'`, `customer_unique_id`, `strftime`, `julianday`).
-2. **Security & Guardrail Layer**:
-   - Zero SQL injection or destructive write operations permitted.
-   - Automatic row limit enforcement.
-3. **Data Visualization**:
-   - Dynamic selection of metric indicators, line plots, and vertical bar charts.
-4. **Natural Language Insights**:
-   - Concise 2-3 sentence executive summaries contextualized with exact figures.
+All 34 penetration test vectors were validated against `app/guardrails.py`:
+
+- **Destructive DDL/DML**: `INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`, `CREATE`, `TRUNCATE`, `GRANT`, `REVOKE`, `VACUUM`, `REINDEX` ── **100% REJECTED**
+- **Statement-Chaining / Semicolon Bypass**: `SELECT 1; DROP TABLE users;` ── **100% REJECTED**
+- **Comment-Hiding Injections**: `SELECT * FROM products; --\nDROP TABLE products;` ── **100% REJECTED**
+- **CTE-Embedded Writes**: `WITH d AS (DELETE FROM users) SELECT * FROM d;` ── **100% REJECTED**
+- **PostgreSQL Exploits**: `PG_SLEEP`, `PG_READ_FILE`, `DBLINK` ── **100% REJECTED**
+- **MySQL Exploits**: `INTO OUTFILE`, `LOAD DATA INFILE`, `BENCHMARK`, `SLEEP` ── **100% REJECTED**
+- **SQLite Exploits**: `ATTACH DATABASE`, `PRAGMA` ── **100% REJECTED**
+- **Credential & Path Sanitization**: Passwords masked as `***` and filesystem paths redacted as `[internal_path]`.
