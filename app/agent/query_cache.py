@@ -29,11 +29,14 @@ class QueryCache:
         """
         Retrieve cached SQLGenerationResult if present and not expired.
         """
+        if ttl_seconds <= 0:
+            return None
+
         key = cls._normalize_key(db_url, question)
         with cls._lock:
             if key in cls._cache:
                 result, timestamp = cls._cache[key]
-                if time.time() - timestamp <= ttl_seconds:
+                if time.time() - timestamp < ttl_seconds:
                     cls._stats["hits"] += 1
                     return result
                 else:
