@@ -1219,63 +1219,79 @@ elif "Sources" in st.session_state.current_nav:
     total_tbls = len(db_schema.tables) if db_schema else 0
     total_rels = len(db_schema.relationships) if db_schema else 0
 
-    # Schema Stats & Controls Header
-    s_col1, s_col2 = st.columns([3, 1])
+    # Search & Schema Header
+    s_col1, s_col2, s_col3 = st.columns([2.5, 1.5, 1])
     with s_col1:
-        st.markdown(f"<div class='panel-title' style='margin: 18px 0 12px 0;'>📊 Database Schema Overview ({total_tbls} Tables · {total_rels} Relationships)</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='panel-title' style='margin: 18px 0 8px 0;'>📊 Database Schema Explorer ({total_tbls} Tables · {total_rels} Relationships)</div>", unsafe_allow_html=True)
     with s_col2:
-        if st.button("🔄 Refresh Schema Cache", key="btn_refresh_schema", use_container_width=True):
+        table_filter = st.text_input("🔍 Search tables...", key="tbl_filter_input", placeholder="Filter by table name...", label_visibility="collapsed")
+    with s_col3:
+        if st.button("🔄 Refresh", key="btn_refresh_schema", use_container_width=True):
             if st.session_state.db_manager and st.session_state.db_manager.normalized_url:
                 SchemaCache.invalidate(st.session_state.db_manager.normalized_url)
                 st.success("Schema cache refreshed!")
                 st.rerun()
 
     if db_schema and db_schema.tables:
-        # Schema Tables Grid
-        scol1, scol2, scol3 = st.columns(3)
-        for idx, (tname, tschema) in enumerate(db_schema.tables.items()):
-            col_target = [scol1, scol2, scol3][idx % 3]
-            
-            # Format columns with PK indicators
-            col_badges = []
-            for c in tschema.columns[:6]:
-                pk_mark = "🔑 " if c.primary_key else ""
-                col_badges.append(f"{pk_mark}{c.name} ({c.type})")
-            
-            col_str = ", ".join(col_badges)
-            if len(tschema.columns) > 6:
-                col_str += f", ... (+{len(tschema.columns)-6} more)"
-            
-            # Row count string
-            row_str = f"{tschema.row_count_estimate:,} records" if tschema.row_count_estimate is not None else f"{len(tschema.columns)} cols"
+        # Filter tables by search query
+        filtered_tables = {
+            k: v for k, v in db_schema.tables.items()
+            if not table_filter or table_filter.lower() in k.lower()
+        }
 
-            with col_target:
-                st.markdown(f"""
-                <div class="kpi-box" style="margin-bottom: 12px;">
-                    <div style="display: flex; align-items: center; justify-content: space-between;">
-                        <div style="font-family: var(--font-title); font-weight: 700; color: #E879F9; font-size: 15px;">📁 {tname}</div>
-                        <div style="font-family: var(--font-mono); font-size: 11px; color: #10B981;">{row_str}</div>
-                    </div>
-                    <div style="font-family: var(--font-mono); font-size: 11px; color: #94A3B8; margin-top: 6px; line-height: 1.4;">{col_str}</div>
-                </div>
-                """, unsafe_allow_html=True)
+        if not filtered_tables:
+            st.info(f"No tables matching '{table_filter}'.")
+        else:
+            # Schema Tables Grid
+            scol1, scol2, scol3 = st.columns(3)
+            for idx, (tname, tschema) in enumerate(filtered_tables.items()):
+                col_target = [scol1, scol2, scol3][idx % 3]
                 
-                # Expandable detailed schema
-                with st.expander(f"Inspect {tname} Schema", expanded=False):
-                    col_df = pd.DataFrame([
-                        {
-                            "Column": c.name,
-                            "Type": c.type,
-                            "Primary Key": "✅ PK" if c.primary_key else "",
-                            "Nullable": "Yes" if c.nullable else "No"
-                        }
-                        for c in tschema.columns
-                    ])
-                    st.dataframe(col_df, use_container_width=True, hide_index=True)
-                    if tschema.foreign_keys:
-                        st.markdown("**Foreign Keys:**")
-                        for fk in tschema.foreign_keys:
-                            st.markdown(f"- `{', '.join(fk.constrained_columns)}` ──► `{fk.referred_table}({', '.join(fk.referred_columns)})`")
+                # Format columns with PK indicators
+                col_badges = []
+                for c in tschema.columns[:6]:
+                    pk_mark = "🔑 " if c.primary_key else ""
+                    col_badges.append(f"{pk_mark}{c.name} ({c.type})")
+                
+                col_str = ", ".join(col_badges)
+                if len(tschema.columns) > 6:
+                    col_str += f", ... (+{len(tschema.columns)-6} more)"
+                
+                # Row count string
+                row_str = f"{tschema.row_count_estimate:,} records" if tschema.row_count_estimate is not None else f"{len(tschema.columns)} cols"
+
+                with col_target:
+                    st.markdown(f"""
+                    <div class="kpi-box" style="margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                            <div style="font-family: var(--font-title); font-weight: 700; color: #E879F9; font-size: 15px;">📁 {tname}</div>
+                            <div style="font-family: var(--font-mono); font-size: 11px; color: #10B981;">{row_str}</div>
+                        </div>
+                        <div style="font-family: var(--font-mono); font-size: 11px; color: #94A3B8; margin-top: 6px; line-height: 1.4;">{col_str}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # Expandable detailed schema
+                    with st.expander(f"Inspect {tname} Schema", expanded=False):
+                        col_df = pd.DataFrame([
+                            {
+                                "Column": c.name,
+                                "Type": c.type,
+                                "Primary Key": "✅ PK" if c.primary_key else "",
+                                "Nullable": "Yes" if c.nullable else "No"
+                            }
+                            for c in tschema.columns
+                        ])
+                        st.dataframe(col_df, use_container_width=True, hide_index=True)
+                        if tschema.foreign_keys:
+                            st.markdown("**Foreign Key Relations:**")
+                            for fk in tschema.foreign_keys:
+                                st.markdown(f"- `{', '.join(fk.constrained_columns)}` ──► `{fk.referred_table}({', '.join(fk.referred_columns)})`")
+
+        # Copy/View Full Normalized Schema DDL Summary
+        with st.expander("📋 View Normalized Schema DDL Summary (Token-Optimized)", expanded=False):
+            st.code(db_schema.to_compact_schema_string(), language="sql")
+
     else:
         st.info("No tables detected in the connected database.")
 

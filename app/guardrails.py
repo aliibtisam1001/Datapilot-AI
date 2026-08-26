@@ -47,7 +47,7 @@ def validate_sql(sql: str, max_rows: int = DEFAULT_MAX_ROWS) -> str:
         SQLValidationError: If the query violates read-only or injection policies.
     """
     if not sql or not isinstance(sql, str) or not sql.strip():
-        raise SQLValidationError("Query is empty.")
+        raise SQLValidationError("Empty query.")
 
     cleaned = sql.strip()
 
