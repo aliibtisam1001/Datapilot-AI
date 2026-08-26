@@ -869,19 +869,28 @@ if "Analyst" in st.session_state.current_nav:
                         except Exception:
                             current_schema = None
 
+                    from app.agent import QueryCache
+
                     for model_candidate in MODELS_PRIORITY:
                         try:
                             explain_llm = init_explain_llm(groq_key, model_name=model_candidate)
                             
-                            # 1. Fast Universal SQL Generator
+                            # 1. Fast Universal SQL Generator with QueryCache
                             if current_schema:
-                                relevant_schema = select_relevant_schema(current_schema, user_input)
-                                gen_result = UniversalSQLGenerator.generate_sql(
-                                    question=user_input,
-                                    db_schema=relevant_schema,
-                                    api_key=groq_key,
-                                    model_name=model_candidate,
-                                )
+                                # Check QueryCache first
+                                cached_res = QueryCache.get(active_db_url, user_input)
+                                if cached_res:
+                                    gen_result = cached_res
+                                else:
+                                    relevant_schema = select_relevant_schema(current_schema, user_input)
+                                    gen_result = UniversalSQLGenerator.generate_sql(
+                                        question=user_input,
+                                        db_schema=relevant_schema,
+                                        api_key=groq_key,
+                                        model_name=model_candidate,
+                                    )
+                                    QueryCache.set(active_db_url, user_input, gen_result)
+
                                 main_sql = gen_result.sql
                                 answer = gen_result.reasoning_summary
 
