@@ -578,9 +578,12 @@ from app.charts import auto_chart
 from app.guardrails import validate_sql
 from app.database import (
     DatabaseConnectionManager,
+    MultiDatabaseManager,
     DatabaseType,
     mask_url,
     get_default_olist_engine,
+    get_cached_schema,
+    SchemaCache,
     InvalidURLError,
     UnsupportedDatabaseError,
 )
