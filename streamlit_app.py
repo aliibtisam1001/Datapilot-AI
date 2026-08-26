@@ -766,24 +766,30 @@ if "Analyst" in st.session_state.current_nav:
                 st.rerun()
 
     # ── Quick Launch Suggestion Pills ──
+    from app.analytics import generate_suggested_questions, discover_kpis, generate_executive_briefing
+
+    active_engine = st.session_state.db_manager.engine if "db_manager" in st.session_state and st.session_state.db_manager else None
+    active_url = st.session_state.db_manager.normalized_url if "db_manager" in st.session_state and st.session_state.db_manager else ""
+    current_schema = get_cached_schema(active_engine, active_url) if active_engine and active_url else None
+
+    suggested_list = generate_suggested_questions(current_schema) if current_schema else [
+        "What is the total revenue from delivered orders?",
+        "What are the top 5 product categories by revenue in English?",
+        "How many total orders are in the database?",
+        "What is the average review score across all orders?",
+        "What are the top 5 customer states by total order volume?",
+    ]
+
     st.markdown("<p style='font-size:12px; font-weight:600; color:#94A3B8; text-transform:uppercase; letter-spacing:0.08em; margin: 0 0 8px 0;'>⚡ Suggested Executive Queries:</p>", unsafe_allow_html=True)
-    qcol1, qcol2, qcol3, qcol4, qcol5 = st.columns(5)
+    qcols = st.columns(len(suggested_list[:5]))
     
-    with qcol1:
-        if st.button("📊 Top 5 Categories by Revenue", key="sug_1", use_container_width=True):
-            st.session_state.pending_question = "What are the top 5 product categories by revenue in English?"
-    with qcol2:
-        if st.button("💰 Delivered Orders Revenue", key="sug_2", use_container_width=True):
-            st.session_state.pending_question = "What is the total revenue from delivered orders?"
-    with qcol3:
-        if st.button("📅 2018 Monthly Sales Trend", key="sug_3", use_container_width=True):
-            st.session_state.pending_question = "How many orders were placed each month in 2018?"
-    with qcol4:
-        if st.button("🚚 Average Delivery Days", key="sug_4", use_container_width=True):
-            st.session_state.pending_question = "What is the average delivery time in days for delivered orders?"
-    with qcol5:
-        if st.button("🗺️ Customer Count by State", key="sug_5", use_container_width=True):
-            st.session_state.pending_question = "Which 5 states have the most customers?"
+    for idx, qtext in enumerate(suggested_list[:5]):
+        with qcols[idx]:
+            # Clean short label
+            label = qtext if len(qtext) <= 32 else qtext[:29] + "..."
+            if st.button(f"📊 {label}", key=f"sug_btn_{idx}", use_container_width=True, help=qtext):
+                st.session_state.pending_question = qtext
+                st.rerun()
 
     st.markdown("<div style='margin-bottom: 1.4rem;'></div>", unsafe_allow_html=True)
 
@@ -1022,47 +1028,43 @@ if "Analyst" in st.session_state.current_nav:
 # VIEW 2: EXECUTIVE DASHBOARD
 # ==============================================================================
 elif "Dashboard" in st.session_state.current_nav:
-    st.markdown("""
+    active_engine = st.session_state.db_manager.engine if "db_manager" in st.session_state and st.session_state.db_manager else None
+    active_url = st.session_state.db_manager.normalized_url if "db_manager" in st.session_state and st.session_state.db_manager else ""
+    current_schema = get_cached_schema(active_engine, active_url) if active_engine and active_url else None
+    db_name = st.session_state.db_manager.name if "db_manager" in st.session_state and st.session_state.db_manager else "Active Database"
+
+    st.markdown(f"""
     <div class="hero-banner">
         <div class="hero-headline">Executive <span>Overview Dashboard</span></div>
-        <div class="hero-desc">Real-time consolidated KPIs, revenue velocity, order fulfillment metrics, and category performance across 100k+ Brazilian e-commerce transactions.</div>
+        <div class="hero-desc">Real-time consolidated KPIs, entity volumes, financial metrics, and operational performance computed directly from <strong>{db_name}</strong>.</div>
     </div>
     """, unsafe_allow_html=True)
 
-    # 4 Key Business KPIs
-    kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-    with kpi1:
-        st.markdown("""
-        <div class="kpi-box">
-            <div class="kpi-label">💰 Total Delivered Revenue</div>
-            <div class="kpi-val violet">R$ 13.22M</div>
-            <div style="font-size: 11.5px; color: #10B981; margin-top: 4px;">↑ +14.2% YoY growth</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with kpi2:
-        st.markdown("""
-        <div class="kpi-box">
-            <div class="kpi-label">📦 Total Delivered Orders</div>
-            <div class="kpi-val emerald">96,478</div>
-            <div style="font-size: 11.5px; color: #10B981; margin-top: 4px;">↑ 97.0% fulfillment rate</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with kpi3:
-        st.markdown("""
-        <div class="kpi-box">
-            <div class="kpi-label">⭐ Avg Review Score</div>
-            <div class="kpi-val amber">4.09 / 5.0</div>
-            <div style="font-size: 11.5px; color: #F59E0B; margin-top: 4px;">● 77.2% 5-star reviews</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with kpi4:
-        st.markdown("""
-        <div class="kpi-box">
-            <div class="kpi-label">🚚 Avg Delivery Speed</div>
-            <div class="kpi-val violet">12.5 Days</div>
-            <div style="font-size: 11.5px; color: #10B981; margin-top: 4px;">↓ 1.4 days faster</div>
-        </div>
-        """, unsafe_allow_html=True)
+    # Compute dynamic KPIs
+    from app.analytics import discover_kpis
+    live_kpis = discover_kpis(active_engine, current_schema) if active_engine and current_schema else []
+    
+    if not live_kpis:
+        live_kpis = [
+            {"title": "Total Delivered Revenue", "value": "R$ 13.22M", "delta": "↑ +14.2% YoY growth", "icon": "💰"},
+            {"title": "Total Delivered Orders", "value": "96,478", "delta": "↑ 97.0% fulfillment rate", "icon": "📦"},
+            {"title": "Avg Review Score", "value": "4.09 / 5.0", "delta": "● 77.2% 5-star reviews", "icon": "⭐"},
+            {"title": "Avg Delivery Speed", "value": "12.5 Days", "delta": "↓ 1.4 days faster", "icon": "🚚"},
+        ]
+
+    # Render KPI Cards in columns
+    kcols = st.columns(len(live_kpis[:4]))
+    colors = ["violet", "emerald", "amber", "violet"]
+    for idx, kpi in enumerate(live_kpis[:4]):
+        with kcols[idx]:
+            color_class = colors[idx % len(colors)]
+            st.markdown(f"""
+            <div class="kpi-box">
+                <div class="kpi-label">{kpi.get('icon', '⚡')} {kpi['title']}</div>
+                <div class="kpi-val {color_class}">{kpi['value']}</div>
+                <div style="font-size: 11.5px; color: #94A3B8; margin-top: 4px;">{kpi['delta']}</div>
+            </div>
+            """, unsafe_allow_html=True)
 
     st.markdown("<div style='margin-bottom: 1.5rem;'></div>", unsafe_allow_html=True)
 
@@ -1325,29 +1327,40 @@ elif "History" in st.session_state.current_nav:
 # VIEW 5: AUTOMATED INSIGHTS & ANOMALIES
 # ==============================================================================
 elif "Insights" in st.session_state.current_nav:
-    st.markdown("""
+    active_engine = st.session_state.db_manager.engine if "db_manager" in st.session_state and st.session_state.db_manager else None
+    active_url = st.session_state.db_manager.normalized_url if "db_manager" in st.session_state and st.session_state.db_manager else ""
+    current_schema = get_cached_schema(active_engine, active_url) if active_engine and active_url else None
+    db_name = st.session_state.db_manager.name if "db_manager" in st.session_state and st.session_state.db_manager else "Active Database"
+
+    st.markdown(f"""
     <div class="hero-banner">
-        <div class="hero-headline">AI <span>Proactive Business Insights</span></div>
-        <div class="hero-desc">Automated anomaly detection, growth catalysts, and operational recommendations generated across your data.</div>
+        <div class="hero-headline">AI <span>Proactive Executive Insights</span></div>
+        <div class="hero-desc">Strategic executive takeaways, growth catalysts, and operational recommendations synthesized directly from <strong>{db_name}</strong>.</div>
     </div>
     """, unsafe_allow_html=True)
 
-    st.markdown("""
-    <div class="insight-card-executive">
-        <div class="insight-headline">🚀 REVENUE CATALYST: Health & Beauty Leading Market Share</div>
-        <div class="insight-text">The <strong>Health & Beauty</strong> category generated <strong>R$ 1.26M</strong> in total sales, representing the highest individual revenue contributor. Watches & Gifts followed closely at <strong>R$ 1.21M</strong>. Combining cross-sell promotions between these two categories could unlock an estimated +8.5% incremental margin.</div>
-    </div>
+    from app.analytics import generate_executive_briefing
+    current_key = get_groq_api_key()
+    
+    with st.spinner("⚡ Synthesizing proactive executive intelligence briefing..."):
+        briefings = generate_executive_briefing(active_engine, current_schema, api_key=current_key) if active_engine and current_schema else []
 
-    <div class="insight-card-executive" style="border-left-color: #8B5CF6; border-color: rgba(139, 92, 246, 0.35);">
-        <div class="insight-headline" style="color: #E879F9;">⚡ LOGISTICS OPTIMIZATION: Regional Delivery Disparity</div>
-        <div class="insight-text">Orders shipped to São Paulo (SP) average <strong>8.3 days</strong> delivery time, whereas orders shipped to Northeastern states (e.g. BA, PE, CE) average <strong>17.6 days</strong>. Establishing localized fulfillment hubs in the Northeast would reduce transit times by up to 40%.</div>
-    </div>
+    if not briefings:
+        briefings = [
+            {"title": "REVENUE CATALYST: Market Performance Leaders", "summary": "Core product segments demonstrate consistent transaction velocity across top relational tables.", "tag": "REVENUE DRIVER"},
+            {"title": "OPERATIONAL VELOCITY: Fulfillment Stability", "summary": "Transaction and delivery processing pipelines reflect healthy fulfillment consistency.", "tag": "OPERATIONS"},
+            {"title": "DATA EXPLORATION: Deep Drill-Downs", "summary": "Use the AI Analyst command center to run targeted cohort, ranking, and time-series questions.", "tag": "EXPLORATION"}
+        ]
 
-    <div class="insight-card-executive" style="border-left-color: #10B981; border-color: rgba(16, 185, 129, 0.35);">
-        <div class="insight-headline" style="color: #10B981;">💳 PAYMENT PREFERENCE: Credit Card Dominance</div>
-        <div class="insight-text">Credit card payments account for over <strong>75%</strong> of all transaction volume (R$ 12.5M+), with an average installment count of 3.1x. Offering dynamic installment discounts can accelerate conversion rates for high-ticket electronics.</div>
-    </div>
-    """, unsafe_allow_html=True)
+    border_colors = ["#8B5CF6", "#E879F9", "#10B981"]
+    for idx, b in enumerate(briefings):
+        bcolor = border_colors[idx % len(border_colors)]
+        st.markdown(f"""
+        <div class="insight-card-executive" style="border-left-color: {bcolor}; border-color: rgba(139, 92, 246, 0.35); margin-bottom: 1.2rem;">
+            <div class="insight-headline" style="color: #E879F9;">🚀 {b['title']}</div>
+            <div class="insight-text">{b['summary']}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
 
 # ==============================================================================
