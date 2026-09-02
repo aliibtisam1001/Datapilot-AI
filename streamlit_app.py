@@ -706,15 +706,30 @@ with nav_col3:
     # Database Switcher & Executive View Toggle
     db_list = st.session_state.multi_db_mgr.list_databases()
     db_names = [d["name"] for d in db_list]
-    active_idx = db_names.index(st.session_state.multi_db_mgr.active_name) if st.session_state.multi_db_mgr.active_name in db_names else 0
     
-    sel_db = st.selectbox("Active Database Source", db_names, index=active_idx, key="global_db_switch", label_visibility="collapsed")
-    if sel_db != st.session_state.multi_db_mgr.active_name:
-        st.session_state.multi_db_mgr.set_active(sel_db)
-        st.session_state.db_manager = st.session_state.multi_db_mgr.get_active()
-        st.rerun()
+    if not db_names:
+        st.selectbox("Active Database Source", ["(No Database Connected)"], index=0, disabled=True, label_visibility="collapsed")
+    else:
+        active_idx = db_names.index(st.session_state.multi_db_mgr.active_name) if st.session_state.multi_db_mgr.active_name in db_names else 0
+        sel_db = st.selectbox("Active Database Source", db_names, index=active_idx, key="global_db_switch", label_visibility="collapsed")
+        if sel_db != st.session_state.multi_db_mgr.active_name:
+            st.session_state.multi_db_mgr.set_active(sel_db)
+            st.session_state.db_manager = st.session_state.multi_db_mgr.get_active()
+            st.rerun()
 
-    st.session_state.executive_mode = st.toggle("👔 Executive View", value=st.session_state.executive_mode, help="Hides SQL and technical query details for high-level executive reviews.")
+    toggle_c1, toggle_c2 = st.columns([1.1, 1])
+    with toggle_c1:
+        demo_toggled = st.toggle("📦 Demo DB", value=st.session_state.multi_db_mgr.is_demo_enabled, key="global_demo_toggle", help="Toggle the default Olist Brazilian E-Commerce demo database on or off.")
+        if demo_toggled != st.session_state.multi_db_mgr.is_demo_enabled:
+            if demo_toggled:
+                st.session_state.multi_db_mgr.enable_demo_database()
+            else:
+                st.session_state.multi_db_mgr.disable_demo_database()
+            st.session_state.db_manager = st.session_state.multi_db_mgr.get_active()
+            st.rerun()
+
+    with toggle_c2:
+        st.session_state.executive_mode = st.toggle("👔 Exec View", value=st.session_state.executive_mode, help="Hides SQL and technical query details for high-level executive reviews.")
 
 st.markdown("<div style='margin-bottom: 1.2rem;'></div>", unsafe_allow_html=True)
 
@@ -777,28 +792,34 @@ if "Analyst" in st.session_state.current_nav:
                 st.rerun()
 
     # ── Frontend Database URL Quick Connector ──
-    active_db_name = st.session_state.db_manager.name if "db_manager" in st.session_state and st.session_state.db_manager else "Olist E-Commerce (Demo)"
-    active_db_type = st.session_state.db_manager.db_type.value.upper() if "db_manager" in st.session_state and st.session_state.db_manager else "SQLITE"
-    active_db_masked = st.session_state.db_manager.masked_url if "db_manager" in st.session_state and st.session_state.db_manager else ""
+    is_connected = st.session_state.db_manager is not None and st.session_state.db_manager.engine is not None
+    active_db_name = st.session_state.db_manager.name if is_connected else "No Database Connected"
+    active_db_type = st.session_state.db_manager.db_type.value.upper() if is_connected else "NONE"
+    active_db_masked = st.session_state.db_manager.masked_url if is_connected else "Waiting for connection URL"
+
+    status_color = "#10B981" if is_connected else "#F59E0B"
+    status_text = "● Connected & Ready" if is_connected else "● No Database Connected"
+    border_color = "rgba(139, 92, 246, 0.35)" if is_connected else "rgba(245, 158, 11, 0.45)"
+    bg_color = "rgba(15, 23, 42, 0.7)" if is_connected else "rgba(30, 20, 10, 0.65)"
 
     st.markdown(f"""
-    <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(139, 92, 246, 0.35); border-radius: 10px; padding: 12px 18px; margin-bottom: 1rem;">
+    <div style="background: {bg_color}; border: 1px solid {border_color}; border-radius: 10px; padding: 12px 18px; margin-bottom: 1rem;">
         <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
             <div>
-                <span style="font-size: 13px; font-weight: 700; color: #E879F9;">🗄️ Active Data Source:</span>
+                <span style="font-size: 13px; font-weight: 700; color: {'#E879F9' if is_connected else '#FBBF24'};">🗄️ Active Data Source:</span>
                 <span style="font-size: 13px; font-weight: 600; color: #F1F5F9; margin-left: 4px;">{active_db_name}</span>
                 <span style="background: rgba(139, 92, 246, 0.25); color: #C084FC; font-size: 11px; padding: 2px 8px; border-radius: 4px; margin-left: 6px;">{active_db_type}</span>
                 <span style="font-family: var(--font-mono); font-size: 11px; color: #94A3B8; margin-left: 8px;">({active_db_masked})</span>
             </div>
-            <div style="font-size: 12px; color: #10B981; font-weight: 600;">● Live & Ready</div>
+            <div style="font-size: 12px; color: {status_color}; font-weight: 600;">{status_text}</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-    with st.expander("🔗 Connect Any Custom Database (Paste PostgreSQL / MySQL / SQLite URL)", expanded=False):
-        st.markdown("<p style='font-size: 13px; color: #CBD5E1; margin-bottom: 8px;'>Paste your database connection string below. DataPilot AI will immediately analyze its schema and allow natural language queries:</p>", unsafe_allow_html=True)
+    with st.expander("🔗 Connect Any Custom Database (Paste PostgreSQL / MySQL / SQLite URL)", expanded=(not is_connected)):
+        st.markdown("<p style='font-size: 13px; color: #CBD5E1; margin-bottom: 8px;'>Paste your database connection URL below. DataPilot AI will immediately test the connection, discover its schema, and enable AI queries:</p>", unsafe_allow_html=True)
         
-        q_url_col, q_btn_col1, q_btn_col2 = st.columns([3.5, 1.3, 1.2])
+        q_url_col, q_btn_col1, q_btn_col2 = st.columns([3.3, 1.4, 1.3])
         with q_url_col:
             quick_db_url = st.text_input(
                 "Database Connection URL",
@@ -809,31 +830,51 @@ if "Analyst" in st.session_state.current_nav:
             )
         with q_btn_col1:
             if st.button("⚡ Connect & Query", key="btn_hero_connect_db", use_container_width=True):
-                if not quick_db_url:
+                if not quick_db_url or not quick_db_url.strip():
                     st.error("Please enter a database connection URL.")
                 else:
-                    with st.spinner("Testing connection and analyzing schema..."):
+                    with st.status("🔄 Connecting to Database...", expanded=True) as conn_status:
                         try:
+                            conn_status.write("1️⃣ Detecting dialect and normalizing driver...")
                             detected = detect_database_type(quick_db_url.strip())
                             alias = f"Custom {detected.value.title()} DB"
                             new_mgr = DatabaseConnectionManager(quick_db_url.strip(), name=alias)
+                            
+                            conn_status.write("2️⃣ Performing live database handshake...")
                             ok, msg = new_mgr.test_connection()
                             if ok:
+                                conn_status.write("3️⃣ Introspecting schema tables & foreign keys...")
+                                schema = get_cached_schema(new_mgr.engine, new_mgr.normalized_url, force_refresh=True)
+                                num_tables = len(schema.tables) if schema else 0
+                                
+                                conn_status.write("4️⃣ Activating data source...")
                                 st.session_state.multi_db_mgr.register_database(alias, new_mgr)
                                 st.session_state.multi_db_mgr.set_active(alias)
                                 st.session_state.db_manager = st.session_state.multi_db_mgr.get_active()
-                                st.success(f"✅ Successfully connected to {alias}! You can now query your data.")
+                                
+                                conn_status.update(label=f"✅ Connected successfully to {alias}! ({num_tables} tables ready)", state="complete", expanded=False)
+                                st.success(f"🎉 Connected successfully to **{alias}**! Discovered **{num_tables} tables**. You can now ask questions about your data below.")
+                                time.sleep(0.6)
                                 st.rerun()
                             else:
+                                conn_status.update(label=f"❌ Connection failed: {msg}", state="error", expanded=True)
                                 st.error(f"❌ Connection failed: {msg}")
                         except Exception as e:
+                            conn_status.update(label=f"❌ Error: {e}", state="error", expanded=True)
                             st.error(f"❌ Error: {e}")
         with q_btn_col2:
-            if st.button("🔄 Reset Demo DB", key="btn_hero_reset_demo", use_container_width=True):
-                st.session_state.multi_db_mgr.set_active("Olist E-Commerce (Demo)")
-                st.session_state.db_manager = st.session_state.multi_db_mgr.get_active()
-                st.info("Switched to default Olist Demo SQLite database.")
-                st.rerun()
+            if st.session_state.multi_db_mgr.is_demo_enabled:
+                if st.button("🚫 Disable Demo DB", key="btn_hero_disable_demo", use_container_width=True, help="Disable the default Olist Demo database"):
+                    st.session_state.multi_db_mgr.disable_demo_database()
+                    st.session_state.db_manager = st.session_state.multi_db_mgr.get_active()
+                    st.info("Default Olist Demo database has been disabled.")
+                    st.rerun()
+            else:
+                if st.button("📦 Enable Demo DB", key="btn_hero_enable_demo", use_container_width=True, help="Enable the default Olist Demo database"):
+                    st.session_state.multi_db_mgr.enable_demo_database()
+                    st.session_state.db_manager = st.session_state.multi_db_mgr.get_active()
+                    st.success("Default Olist Demo database enabled.")
+                    st.rerun()
 
         st.markdown("""
         <div style="font-size: 11.5px; color: #94A3B8; margin-top: 6px; display: flex; gap: 16px; flex-wrap: wrap;">
@@ -850,24 +891,30 @@ if "Analyst" in st.session_state.current_nav:
     active_url = st.session_state.db_manager.normalized_url if "db_manager" in st.session_state and st.session_state.db_manager else ""
     current_schema = get_cached_schema(active_engine, active_url) if active_engine and active_url else None
 
-    suggested_list = generate_suggested_questions(current_schema) if current_schema else [
-        "What is the total revenue from delivered orders?",
-        "What are the top 5 product categories by revenue in English?",
-        "How many total orders are in the database?",
-        "What is the average review score across all orders?",
-        "What are the top 5 customer states by total order volume?",
-    ]
+    if current_schema:
+        suggested_list = generate_suggested_questions(current_schema)
+    elif st.session_state.multi_db_mgr.is_demo_enabled:
+        suggested_list = [
+            "What is the total revenue from delivered orders?",
+            "What are the top 5 product categories by revenue in English?",
+            "How many total orders are in the database?",
+            "What is the average review score across all orders?",
+            "What are the top 5 customer states by total order volume?",
+        ]
+    else:
+        suggested_list = []
 
-    st.markdown("<p style='font-size:12px; font-weight:600; color:#94A3B8; text-transform:uppercase; letter-spacing:0.08em; margin: 0 0 8px 0;'>⚡ Suggested Executive Queries:</p>", unsafe_allow_html=True)
-    qcols = st.columns(len(suggested_list[:5]))
-    
-    for idx, qtext in enumerate(suggested_list[:5]):
-        with qcols[idx]:
-            # Clean short label
-            label = qtext if len(qtext) <= 32 else qtext[:29] + "..."
-            if st.button(f"📊 {label}", key=f"sug_btn_{idx}", use_container_width=True, help=qtext):
-                st.session_state.pending_question = qtext
-                st.rerun()
+    if suggested_list:
+        st.markdown("<p style='font-size:12px; font-weight:600; color:#94A3B8; text-transform:uppercase; letter-spacing:0.08em; margin: 0 0 8px 0;'>⚡ Suggested Executive Queries:</p>", unsafe_allow_html=True)
+        qcols = st.columns(len(suggested_list[:5]))
+        
+        for idx, qtext in enumerate(suggested_list[:5]):
+            with qcols[idx]:
+                # Clean short label
+                label = qtext if len(qtext) <= 32 else qtext[:29] + "..."
+                if st.button(f"📊 {label}", key=f"sug_btn_{idx}", use_container_width=True, help=qtext):
+                    st.session_state.pending_question = qtext
+                    st.rerun()
 
     st.markdown("<div style='margin-bottom: 1.4rem;'></div>", unsafe_allow_html=True)
 
@@ -907,12 +954,13 @@ if "Analyst" in st.session_state.current_nav:
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-        # Chat Input
+        # Chat Input (disabled if no database is connected)
         if "pending_question" in st.session_state:
             user_input = st.session_state.pending_question
             del st.session_state.pending_question
         else:
-            user_input = st.chat_input("Ask anything about your business data...")
+            chat_placeholder = "Ask anything about your business data..." if is_connected else "⚠️ Connect a database above or enable Demo DB to start querying..."
+            user_input = st.chat_input(chat_placeholder, disabled=(not is_connected))
 
     # ── RIGHT COLUMN: Dynamic Analytics & Intelligence Panel ──
     with right_col:
@@ -927,25 +975,28 @@ if "Analyst" in st.session_state.current_nav:
         # Process user query if submitted
         groq_key = get_groq_api_key()
         if user_input:
-            if not groq_key:
+            if not is_connected:
+                st.warning("⚠️ No active database connected. Please connect a database using the URL input above or re-enable the Demo Database.")
+            elif not groq_key:
                 st.error("🔑 Groq API key missing. Please enter your Groq API key above or in the ⚙️ Settings tab.")
             else:
                 # Add user message
                 st.session_state.messages.append({"role": "user", "content": user_input})
                 st.session_state.latest_question = user_input
 
-                # Execute with automatic multi-model fallback
-                with st.spinner("🤖 Synthesizing query & executing on live database..."):
+                # Execute with animated step-by-step loading status
+                with st.status("⚡ Answering your question...", expanded=True) as q_status:
                     execution_success = False
                     last_err = ""
 
                     from app.database import get_cached_schema
                     from app.agent import UniversalSQLGenerator, select_relevant_schema
 
-                    active_db_url = st.session_state.db_manager.normalized_url if "db_manager" in st.session_state and st.session_state.db_manager else ""
-                    active_engine = st.session_state.db_manager.engine if "db_manager" in st.session_state and st.session_state.db_manager else None
+                    active_db_url = st.session_state.db_manager.normalized_url if st.session_state.db_manager else ""
+                    active_engine = st.session_state.db_manager.engine if st.session_state.db_manager else None
 
                     # Introspect or fetch cached schema
+                    q_status.write("1️⃣ Introspecting schema & discovering active tables...")
                     current_schema = None
                     if active_engine and active_db_url:
                         try:
@@ -964,9 +1015,14 @@ if "Analyst" in st.session_state.current_nav:
                                 # Check QueryCache first
                                 cached_res = QueryCache.get(active_db_url, user_input)
                                 if cached_res:
+                                    q_status.write("⚡ Sub-millisecond cache hit! Retrieving cached answer...")
                                     gen_result = cached_res
                                 else:
+                                    q_status.write("2️⃣ Selecting relevant schema tables & foreign-key paths...")
                                     relevant_schema = select_relevant_schema(current_schema, user_input)
+                                    
+                                    dialect_str = st.session_state.db_manager.db_type.value.upper() if st.session_state.db_manager else "SQL"
+                                    q_status.write(f"3️⃣ Generating dialect-accurate {dialect_str} query with Groq AI...")
                                     gen_result = UniversalSQLGenerator.generate_sql(
                                         question=user_input,
                                         db_schema=relevant_schema,
@@ -978,15 +1034,16 @@ if "Analyst" in st.session_state.current_nav:
                                 main_sql = gen_result.sql
                                 answer = gen_result.reasoning_summary
 
+                                q_status.write("4️⃣ Executing query on live database...")
                                 df = pd.DataFrame()
                                 if main_sql and active_engine:
                                     try:
                                         df = st.session_state.db_manager.execute_query(main_sql)
-                                    except Exception:
+                                    except Exception as qe:
                                         df = pd.DataFrame()
 
                             else:
-                                # Fallback to LangChain agent if schema discovery failed
+                                q_status.write("2️⃣ Generating SQL query with agent fallback...")
                                 agent, db, llm = init_agent(groq_key, model_name=model_candidate, db_url=active_db_url)
                                 callback_handler = SQLCaptureCallbackHandler()
                                 result = agent.invoke(
@@ -999,6 +1056,7 @@ if "Analyst" in st.session_state.current_nav:
 
                             chart_fig = None
                             if not df.empty:
+                                q_status.write("5️⃣ Auto-generating interactive charts...")
                                 try:
                                     chart_fig = auto_chart(df, user_input)
                                 except Exception:
@@ -1006,8 +1064,8 @@ if "Analyst" in st.session_state.current_nav:
 
                             explanation = None
                             if not df.empty:
+                                q_status.write("6️⃣ Synthesizing executive strategic briefing...")
                                 try:
-                                    time.sleep(1)
                                     explanation = explain_result(user_input, df, sql=main_sql, llm=explain_llm)
                                     if explanation:
                                         answer = explanation
@@ -1029,6 +1087,7 @@ if "Analyst" in st.session_state.current_nav:
                                 "explanation": explanation,
                             })
                             execution_success = True
+                            q_status.update(label="✅ Query completed successfully!", state="complete", expanded=False)
                             break
 
                         except Exception as e:
@@ -1039,6 +1098,7 @@ if "Analyst" in st.session_state.current_nav:
                                 break
 
                     if not execution_success:
+                        q_status.update(label="❌ Query execution failed", state="error", expanded=True)
                         if "429" in last_err or "rate_limit" in last_err.lower():
                             st.warning("⏳ Daily token quota temporarily reached across all free-tier models. Please retry in a few moments or enter a custom Groq API key in Settings.")
                         else:
@@ -1260,6 +1320,11 @@ elif "Sources" in st.session_state.current_nav:
                     st.session_state.multi_db_mgr.remove_database(dname)
                     st.session_state.db_manager = st.session_state.multi_db_mgr.get_active()
                     st.rerun()
+            else:
+                if st.button("Disable", key=f"btn_disable_{dname}", use_container_width=True, help="Disable demo database"):
+                    st.session_state.multi_db_mgr.disable_demo_database()
+                    st.session_state.db_manager = st.session_state.multi_db_mgr.get_active()
+                    st.rerun()
 
     st.markdown("<div style='margin-bottom: 1.2rem;'></div>", unsafe_allow_html=True)
 
@@ -1302,16 +1367,20 @@ elif "Sources" in st.session_state.current_nav:
                 if not conn_url_input:
                     st.error("Please enter a connection URL first.")
                 else:
-                    try:
-                        temp_mgr = DatabaseConnectionManager(conn_url_input, name="TestConn")
-                        ok, msg = temp_mgr.test_connection()
-                        if ok:
-                            st.success(f"✅ {msg}")
-                        else:
-                            st.error(f"❌ {msg}")
-                        temp_mgr.dispose()
-                    except Exception as e:
-                        st.error(f"❌ Connection error: {e}")
+                    with st.status("🔄 Testing database handshake...", expanded=True) as test_status:
+                        try:
+                            temp_mgr = DatabaseConnectionManager(conn_url_input, name="TestConn")
+                            ok, msg = temp_mgr.test_connection()
+                            if ok:
+                                test_status.update(label=f"✅ {msg}", state="complete", expanded=False)
+                                st.success(f"✅ {msg}")
+                            else:
+                                test_status.update(label=f"❌ {msg}", state="error", expanded=True)
+                                st.error(f"❌ {msg}")
+                            temp_mgr.dispose()
+                        except Exception as e:
+                            test_status.update(label=f"❌ Connection error: {e}", state="error", expanded=True)
+                            st.error(f"❌ Connection error: {e}")
 
         with btn_col2:
             if st.button("🔗 Register & Activate", key="btn_activate_conn", use_container_width=True):
@@ -1319,26 +1388,44 @@ elif "Sources" in st.session_state.current_nav:
                     st.error("Please enter a connection URL first.")
                 else:
                     alias = db_alias_input.strip() or f"Custom {db_type_choice} DB"
-                    try:
-                        new_mgr = DatabaseConnectionManager(conn_url_input, name=alias)
-                        ok, msg = new_mgr.test_connection()
-                        if ok:
-                            st.session_state.multi_db_mgr.register_database(alias, new_mgr)
-                            st.session_state.multi_db_mgr.set_active(alias)
-                            st.session_state.db_manager = st.session_state.multi_db_mgr.get_active()
-                            st.success(f"✅ Successfully registered and switched to {alias}!")
-                            st.rerun()
-                        else:
-                            st.error(f"❌ Could not connect: {msg}")
-                    except Exception as e:
-                        st.error(f"❌ Registration error: {e}")
+                    with st.status("🔄 Connecting to Database...", expanded=True) as reg_status:
+                        try:
+                            reg_status.write("1️⃣ Testing connection handshake...")
+                            new_mgr = DatabaseConnectionManager(conn_url_input, name=alias)
+                            ok, msg = new_mgr.test_connection()
+                            if ok:
+                                reg_status.write("2️⃣ Introspecting schema & discovering tables...")
+                                schema = get_cached_schema(new_mgr.engine, new_mgr.normalized_url, force_refresh=True)
+                                num_tables = len(schema.tables) if schema else 0
+                                
+                                reg_status.write("3️⃣ Activating data source for DataPilot AI...")
+                                st.session_state.multi_db_mgr.register_database(alias, new_mgr)
+                                st.session_state.multi_db_mgr.set_active(alias)
+                                st.session_state.db_manager = st.session_state.multi_db_mgr.get_active()
+                                reg_status.update(label=f"✅ Connected successfully to {alias}! ({num_tables} tables ready)", state="complete", expanded=False)
+                                st.success(f"🎉 Connected successfully to **{alias}**! Discovered **{num_tables} tables**.")
+                                time.sleep(0.6)
+                                st.rerun()
+                            else:
+                                reg_status.update(label=f"❌ Connection failed: {msg}", state="error", expanded=True)
+                                st.error(f"❌ Could not connect: {msg}")
+                        except Exception as e:
+                            reg_status.update(label=f"❌ Registration error: {e}", state="error", expanded=True)
+                            st.error(f"❌ Registration error: {e}")
 
         with btn_col3:
-            if st.button("🔄 Reset to Olist Demo", key="btn_reset_demo", use_container_width=True):
-                st.session_state.multi_db_mgr.set_active("Olist E-Commerce (Demo)")
-                st.session_state.db_manager = st.session_state.multi_db_mgr.get_active()
-                st.info("Switched to default Olist Demo SQLite database.")
-                st.rerun()
+            if not st.session_state.multi_db_mgr.is_demo_enabled:
+                if st.button("📦 Re-Enable Olist Demo", key="btn_enable_demo_ds", use_container_width=True):
+                    st.session_state.multi_db_mgr.enable_demo_database()
+                    st.session_state.db_manager = st.session_state.multi_db_mgr.get_active()
+                    st.success("Olist Demo database re-enabled.")
+                    st.rerun()
+            else:
+                if st.button("🔄 Switch to Olist Demo", key="btn_switch_demo_ds", use_container_width=True):
+                    st.session_state.multi_db_mgr.set_active("Olist E-Commerce (Demo)")
+                    st.session_state.db_manager = st.session_state.multi_db_mgr.get_active()
+                    st.info("Switched to default Olist Demo SQLite database.")
+                    st.rerun()
 
     # Schema Overview & Inspector using SchemaCache
     db_schema = None

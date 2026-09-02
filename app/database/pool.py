@@ -39,15 +39,20 @@ class EnginePool:
                         pool_pre_ping=True,
                     )
             else:
-                # PostgreSQL or MySQL
+                # PostgreSQL or MySQL with fast connect timeout
+                if "postgres" in url:
+                    connect_args["connect_timeout"] = 5
+                elif "mysql" in url:
+                    connect_args["connect_timeout"] = 5
                 engine = sqlalchemy.create_engine(
                     url,
+                    connect_args=connect_args,
                     poolclass=QueuePool,
                     pool_size=pool_size,
                     max_overflow=max_overflow,
                     pool_recycle=1800,
                     pool_pre_ping=True,
-                    pool_timeout=10,
+                    pool_timeout=5,
                 )
 
             cls._instances[url] = engine

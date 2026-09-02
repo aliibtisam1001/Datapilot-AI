@@ -52,26 +52,51 @@ class MultiDatabaseManager:
             self._active_name = name
         return mgr
 
-    def set_active(self, name: str) -> DatabaseConnectionManager:
-        """Set the active database connection by name."""
+    def set_active(self, name: Optional[str]) -> Optional[DatabaseConnectionManager]:
+        """Set the active database connection by name, or None to deactivate all."""
+        if name is None or name == "" or name == "None":
+            self._active_name = None
+            return None
         if name not in self._connections:
             raise KeyError(f"Database '{name}' is not registered in MultiDatabaseManager.")
         self._active_name = name
         return self._connections[name]
 
     def get_active(self) -> Optional[DatabaseConnectionManager]:
-        """Get the currently active DatabaseConnectionManager."""
+        """Get the currently active DatabaseConnectionManager, or None if inactive."""
         if self._active_name and self._active_name in self._connections:
             return self._connections[self._active_name]
-        if self._connections:
-            first_name = next(iter(self._connections))
-            self._active_name = first_name
-            return self._connections[first_name]
         return None
 
     @property
     def active_name(self) -> Optional[str]:
         return self._active_name
+
+    @property
+    def is_demo_enabled(self) -> bool:
+        """Check if the default Olist demo database is registered."""
+        return "Olist E-Commerce (Demo)" in self._connections
+
+    def disable_demo_database(self) -> None:
+        """Disable and unregister the default Olist demo database."""
+        if "Olist E-Commerce (Demo)" in self._connections:
+            demo_mgr = self._connections.pop("Olist E-Commerce (Demo)")
+            demo_mgr.dispose()
+            if self._active_name == "Olist E-Commerce (Demo)":
+                self._active_name = next(iter(self._connections), None)
+
+    def enable_demo_database(self) -> Optional[DatabaseConnectionManager]:
+        """Enable and register the default Olist demo database."""
+        if "Olist E-Commerce (Demo)" not in self._connections:
+            try:
+                _, olist_url = get_default_olist_engine()
+                demo_mgr = DatabaseConnectionManager(olist_url, name="Olist Brazilian E-Commerce (Demo)")
+                self.register_database("Olist E-Commerce (Demo)", demo_mgr)
+            except Exception:
+                return None
+        if not self._active_name:
+            self._active_name = "Olist E-Commerce (Demo)"
+        return self._connections.get("Olist E-Commerce (Demo)")
 
     def get_database(self, name: str) -> Optional[DatabaseConnectionManager]:
         """Retrieve a registered connection manager by name."""

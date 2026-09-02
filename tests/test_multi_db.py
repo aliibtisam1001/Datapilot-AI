@@ -75,3 +75,25 @@ def test_remove_database(multi_db):
     removed = multi_db.remove_database("Sales DB")
     assert removed is True
     assert multi_db.get_database("Sales DB") is None
+
+
+def test_disable_and_enable_demo_database(multi_db):
+    """Verify demo database can be dynamically disabled and re-enabled."""
+    assert multi_db.is_demo_enabled is True
+    multi_db.disable_demo_database()
+    assert multi_db.is_demo_enabled is False
+    assert multi_db.get_database("Olist E-Commerce (Demo)") is None
+
+    # Re-enable
+    multi_db.enable_demo_database()
+    assert multi_db.is_demo_enabled is True
+    assert multi_db.get_database("Olist E-Commerce (Demo)") is not None
+
+
+def test_set_active_none(multi_db):
+    """Verify setting active to None or empty deactivates current database."""
+    multi_db.set_active("Sales DB")
+    assert multi_db.get_active() is not None
+    multi_db.set_active(None)
+    assert multi_db.get_active() is None
+    assert multi_db.active_name is None
