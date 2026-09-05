@@ -363,7 +363,7 @@ st.markdown("""
         line-height: 1.6;
     }
 
-    /* ── Quick Action Suggestion Pills ── */
+    /* ── Interactive Buttons ── */
     .stButton > button {
         border-radius: 12px !important;
         font-size: 13px !important;
@@ -884,39 +884,7 @@ if "Analyst" in st.session_state.current_nav:
         </div>
         """, unsafe_allow_html=True)
 
-    # ── Quick Launch Suggestion Pills ──
-    from app.analytics import generate_suggested_questions, discover_kpis, generate_executive_briefing
-
-    active_engine = st.session_state.db_manager.engine if "db_manager" in st.session_state and st.session_state.db_manager else None
-    active_url = st.session_state.db_manager.normalized_url if "db_manager" in st.session_state and st.session_state.db_manager else ""
-    current_schema = get_cached_schema(active_engine, active_url) if active_engine and active_url else None
-
-    if current_schema:
-        suggested_list = generate_suggested_questions(current_schema)
-    elif st.session_state.multi_db_mgr.is_demo_enabled:
-        suggested_list = [
-            "What is the total revenue from delivered orders?",
-            "What are the top 5 product categories by revenue in English?",
-            "How many total orders are in the database?",
-            "What is the average review score across all orders?",
-            "What are the top 5 customer states by total order volume?",
-        ]
-    else:
-        suggested_list = []
-
-    if suggested_list:
-        st.markdown("<p style='font-size:12px; font-weight:600; color:#94A3B8; text-transform:uppercase; letter-spacing:0.08em; margin: 0 0 8px 0;'>⚡ Suggested Executive Queries:</p>", unsafe_allow_html=True)
-        qcols = st.columns(len(suggested_list[:5]))
-        
-        for idx, qtext in enumerate(suggested_list[:5]):
-            with qcols[idx]:
-                # Clean short label
-                label = qtext if len(qtext) <= 32 else qtext[:29] + "..."
-                if st.button(f"📊 {label}", key=f"sug_btn_{idx}", use_container_width=True, help=qtext):
-                    st.session_state.pending_question = qtext
-                    st.rerun()
-
-    st.markdown("<div style='margin-bottom: 1.4rem;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='margin-bottom: 1.2rem;'></div>", unsafe_allow_html=True)
 
     # ── Core Interactive Two-Column Workspace ──
     left_col, right_col = st.columns([1.1, 1.35], gap="large")
@@ -937,7 +905,7 @@ if "Analyst" in st.session_state.current_nav:
             <div style="text-align: center; padding: 2rem 1rem; color: #64748B;">
                 <div style="font-size: 32px; margin-bottom: 8px;">🤖</div>
                 <div style="font-weight: 600; color: #94A3B8; margin-bottom: 4px;">DataPilot AI is ready.</div>
-                <div style="font-size: 13px;">Type any business question below or click a suggested query above.</div>
+                <div style="font-size: 13px;">Type any business question below to start exploring.</div>
             </div>
             """, unsafe_allow_html=True)
 

@@ -1,7 +1,7 @@
 """
 Dynamic Metric Discovery Engine for DataPilot AI.
 Analyzes arbitrary database schemas to automatically identify key business entities,
-financial aggregates, time dimensions, and generate smart suggested business questions.
+financial aggregates, and time dimensions.
 """
 import re
 from typing import List, Dict, Any, Optional
@@ -12,7 +12,7 @@ from app.database.schema import DatabaseSchema, TableSchema
 
 
 class MetricDiscoveryEngine:
-    """Discovers business metrics, KPIs, and suggested queries from a database schema."""
+    """Discovers business metrics and KPIs from a database schema."""
 
     @classmethod
     def discover_kpis(cls, engine: Engine, db_schema: DatabaseSchema) -> List[Dict[str, Any]]:
@@ -124,66 +124,6 @@ class MetricDiscoveryEngine:
 
         return kpis
 
-    @classmethod
-    def generate_suggested_questions(cls, db_schema: DatabaseSchema) -> List[str]:
-        """
-        Synthesizes 5 smart, high-value business questions tailored specifically
-        to the tables, columns, and relationships in the active database.
-        """
-        suggestions: List[str] = []
-        tables = db_schema.tables
-
-        # Check for Olist demo database specifically
-        if "order_items" in tables and "products" in tables:
-            return [
-                "What is the total revenue from delivered orders?",
-                "What are the top 5 product categories by revenue with English names?",
-                "How many total orders are in the database?",
-                "What is the average review score across all orders?",
-                "What are the top 5 customer states by total order volume?",
-            ]
-
-        # Universal heuristic query synthesis
-        # 1. Total counts on main tables
-        for tname in list(tables.keys())[:2]:
-            suggestions.append(f"How many total {tname.replace('_', ' ')} are in the database?")
-
-        # 2. Top categories / rankings
-        for tname, tschema in tables.items():
-            cat_cols = [c.name for c in tschema.columns if any(k in c.name.lower() for k in ["name", "category", "region", "country", "status", "stage", "department", "dept_name"])]
-            num_cols = [c.name for c in tschema.columns if any(k in c.name.lower() for k in ["price", "amount", "revenue", "salary", "value", "total", "score"])]
-            
-            if cat_cols and num_cols:
-                suggestions.append(f"What are the top 5 {cat_cols[0].replace('_', ' ')} by total {num_cols[0].replace('_', ' ')}?")
-                break
-
-        # 3. Monthly / Time-series Trend
-        for tname, tschema in tables.items():
-            date_cols = [c.name for c in tschema.columns if any(k in c.name.lower() for k in ["date", "timestamp", "created", "at", "time"])]
-            if date_cols:
-                suggestions.append(f"What is the monthly trend of {tname.replace('_', ' ')} over time?")
-                break
-
-        # 4. Average metric
-        for tname, tschema in tables.items():
-            num_cols = [c.name for c in tschema.columns if any(k in c.name.lower() for k in ["price", "amount", "revenue", "salary", "value", "score", "days", "time"])]
-            if num_cols:
-                suggestions.append(f"What is the average {num_cols[0].replace('_', ' ')} across all records?")
-                break
-
-        # Ensure we have at least 4 suggestions
-        if len(suggestions) < 4:
-            for tname in list(tables.keys())[2:]:
-                suggestions.append(f"Show me a breakdown of records in {tname}.")
-                if len(suggestions) >= 4:
-                    break
-
-        return suggestions[:5]
-
 
 def discover_kpis(engine: Engine, db_schema: DatabaseSchema) -> List[Dict[str, Any]]:
     return MetricDiscoveryEngine.discover_kpis(engine, db_schema)
-
-
-def generate_suggested_questions(db_schema: DatabaseSchema) -> List[str]:
-    return MetricDiscoveryEngine.generate_suggested_questions(db_schema)

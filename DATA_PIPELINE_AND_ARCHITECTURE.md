@@ -98,7 +98,7 @@ flowchart TD
 Here is the exact lifecycle of a user query, from keyboard to rendered dashboard:
 
 ### Stage 1: Input & Context Identification
-- User types a natural language question (e.g., *"What are the top 5 product categories by revenue in 2018?"*) or clicks a dynamic suggested query pill.
+- User types a natural language question (e.g., *"What are the top 5 product categories by revenue in 2018?"*).
 - The system checks `st.session_state.multi_db_mgr.get_active()` to identify the currently active database and its normalized connection URL.
 
 ### Stage 2: Cache Key Normalization & Lookup (< 0.1 ms)
@@ -304,7 +304,6 @@ When any database is connected, DataPilot AI autonomously scans table structures
 1. **Fact Volume Entities**: Scans for transaction or volume tables (`orders`, `deals`, `sales`, `admissions`, `staff`) and computes live row counts.
 2. **Financial Aggregates**: Identifies currency or numeric columns (`price`, `revenue`, `amount`, `salary`, `cost`, `total`) and computes live sums.
 3. **Unique Cohorts**: Identifies entity identifiers (`customer_id`, `patient_id`, `employee_id`) and computes `COUNT(DISTINCT ...)`.
-4. **Suggested Questions**: Synthesizes 5 domain-tailored questions dynamically rendered on the hero banner.
 
 ### Auto-Adaptive Plotly Engine (`app/charts.py`)
 Selects visualization type dynamically based on result shape:

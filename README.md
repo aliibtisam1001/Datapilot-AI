@@ -56,7 +56,7 @@
   - Automatic credential masking and error message sanitization.
 - 📊 **Dynamic Metric Discovery & Auto-KPIs**:
   - Automatically identifies core business entities, revenue/salary aggregates, and time dimensions.
-  - Dynamically synthesizes 5 smart suggested business questions tailored to any connected database.
+  - Automatically computes high-level executive KPI metrics across any connected database.
 - 💡 **Proactive Executive Briefings**: Synthesizes 3 structured strategic takeaway cards (Performance Leader, Growth & Velocity, Operational Focus) directly from live data.
 - 🧠 **Interactive 3D WebGL Core**: Real-time Three.js 3D AI Brain Torus with floating synaptic data nodes and mouse-parallax physics.
 - 👔 **Executive View Mode**: One-click toggle that hides technical SQL queries and DDL details, strictly presenting high-level KPIs, trend charts, and recommendations.
@@ -101,7 +101,7 @@ Datapilot-AI/
 │   │   ├── sql_generator.py # Universal dialect-accurate single-turn SQL generator
 │   │   └── query_cache.py   # Thread-safe normalized TTL query caching layer
 │   ├── analytics/           # Automated Business Intelligence Engine
-│   │   ├── metrics.py       # Dynamic KPI discovery & suggested queries synthesizer
+│   │   ├── metrics.py       # Dynamic KPI discovery and entity analysis engine
 │   │   └── insights.py      # Proactive executive briefings and strategic takeaway generator
 │   ├── charts.py            # Multi-color Plotly auto-adaptive visualization engine
 │   ├── explain.py           # Universal executive business insight generator

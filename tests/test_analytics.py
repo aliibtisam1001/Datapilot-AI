@@ -1,6 +1,6 @@
 """
 Unit & Integration Tests for Analytics & Metric Discovery (Phase 7).
-Validates dynamic KPI discovery, suggested questions generation, and executive briefings.
+Validates dynamic KPI discovery and executive briefings.
 """
 import os
 import pytest
@@ -10,7 +10,6 @@ from sqlalchemy import create_engine
 from app.database import get_default_olist_engine, get_database_schema
 from app.analytics import (
     discover_kpis,
-    generate_suggested_questions,
     generate_executive_briefing,
     ExecutiveInsightsEngine,
 )
@@ -60,25 +59,6 @@ def test_discover_kpis_hr(custom_hr_engine):
     titles = [k["title"] for k in kpis]
     assert any("staff" in t.lower() for t in titles)
     assert any("salary" in t.lower() for t in titles)
-
-
-def test_generate_suggested_questions_olist():
-    """Verify suggested questions tailored to Olist dataset."""
-    engine, _ = get_default_olist_engine()
-    schema = get_database_schema(engine)
-    suggestions = generate_suggested_questions(schema)
-
-    assert len(suggestions) >= 4
-    assert any("revenue" in s.lower() or "order" in s.lower() for s in suggestions)
-
-
-def test_generate_suggested_questions_hr(custom_hr_engine):
-    """Verify suggested questions dynamically created for HR schema."""
-    schema = get_database_schema(custom_hr_engine)
-    suggestions = generate_suggested_questions(schema)
-
-    assert len(suggestions) >= 3
-    assert any("staff" in s.lower() or "salary" in s.lower() for s in suggestions)
 
 
 def test_executive_insights_fallback(custom_hr_engine):
