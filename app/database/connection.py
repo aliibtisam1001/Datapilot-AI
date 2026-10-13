@@ -131,6 +131,7 @@ class DatabaseConnectionManager:
         self._normalized_url: Optional[str] = None
         self._db_type: DatabaseType = DatabaseType.UNKNOWN
         self._engine: Optional[Engine] = None
+        self.query_timeout_ms = int(os.getenv("DATAPILOT_QUERY_TIMEOUT_MS", "15000"))
 
         if connection_url:
             self.set_connection(connection_url)
@@ -201,7 +202,8 @@ class DatabaseConnectionManager:
         except NoSuchModuleError as e:
             return False, f"Missing database driver: {e}"
         except Exception as e:
-            return False, f"Connection failed: {str(e)}"
+            from app.guardrails import sanitize_error_message
+            return False, f"Connection failed: {sanitize_error_message(e)}"
 
     def _classify_operational_error(self, err: OperationalError) -> str:
         """Classify operational errors into human-friendly, sanitized diagnostics."""
@@ -216,7 +218,7 @@ class DatabaseConnectionManager:
             return "Host unavailable: Could not reach the database server. Check host, port, and firewall."
 
         # Target database does not exist
-        elif any(w in err_msg for w in ["database", "does not exist", "unknown database"]):
+        elif any(w in err_msg for w in ["database does not exist", "unknown database"]):
             return "Database not found: The specified database name does not exist on the server."
 
         # Timeout / network loss
@@ -230,19 +232,41 @@ class DatabaseConnectionManager:
         return f"Database operational error: {str(err)}"
 
     def execute_query(self, sql: str, params: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
-        """Execute a read query and return results as a Pandas DataFrame."""
+        """Validate and execute a read-only query with a bounded runtime."""
         if not self._engine:
             raise DatabaseConnectionError("Cannot execute query: No active database connection.")
 
         try:
+            from app.guardrails import validate_sql
+
+            secured_sql = validate_sql(sql, dialect=self._db_type.value)
             with self._engine.connect() as conn:
-                if params:
-                    df = pd.read_sql(sqlalchemy.text(sql), conn, params=params)
-                else:
-                    df = pd.read_sql(sqlalchemy.text(sql), conn)
+                with conn.begin():
+                    # Database enforcement is the final boundary even if a
+                    # future caller forgets to invoke the application guardrail.
+                    if self._db_type == DatabaseType.SQLITE:
+                        conn.exec_driver_sql("PRAGMA query_only = ON")
+                    elif self._db_type == DatabaseType.POSTGRESQL:
+                        conn.execute(sqlalchemy.text("SET TRANSACTION READ ONLY"))
+                        conn.execute(sqlalchemy.text(
+                            f"SET LOCAL statement_timeout = {self.query_timeout_ms}"
+                        ))
+                    elif self._db_type == DatabaseType.MYSQL:
+                        conn.execute(sqlalchemy.text("SET TRANSACTION READ ONLY"))
+                        conn.execute(sqlalchemy.text(
+                            f"SET SESSION MAX_EXECUTION_TIME = {self.query_timeout_ms}"
+                        ))
+
+                    if params:
+                        df = pd.read_sql(sqlalchemy.text(secured_sql), conn, params=params)
+                    else:
+                        df = pd.read_sql(sqlalchemy.text(secured_sql), conn)
             return df
         except Exception as e:
-            raise DatabaseConnectionError(f"Query execution failed: {str(e)}")
+            from app.guardrails import sanitize_error_message
+            raise DatabaseConnectionError(
+                f"Query execution failed: {sanitize_error_message(e)}"
+            ) from e
 
     def dispose(self) -> None:
         """Dispose of the current connection engine."""

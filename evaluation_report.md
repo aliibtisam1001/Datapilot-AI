@@ -1,5 +1,7 @@
 # DataPilot AI — Universal Evaluation & Benchmark Report
 
+> Historical benchmark snapshot from 2026-08-26. The current offline regression suite is reported in `README.md`; live-provider tests are opt-in.
+
 **Evaluation Date:** 2026-08-26  
 **Engines Evaluated:** SQLite, PostgreSQL (normalized), MySQL (normalized)  
 **LLM Engine:** Groq Accelerated (`openai/gpt-oss-120b`, `openai/gpt-oss-20b`, `qwen/qwen3.6-27b`)  

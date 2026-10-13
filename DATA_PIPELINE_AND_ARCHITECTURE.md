@@ -104,17 +104,18 @@ Here is the exact lifecycle of a user query, from keyboard to rendered dashboard
 ### Stage 2: Cache Key Normalization & Lookup (< 0.1 ms)
 - The raw question is canonicalized: stripped of leading/trailing whitespace, collapsed of multi-spaces, lowercased, and combined with the database URL:
   $$\text{Key} = \text{SHA256}(\text{db\_url} \mathbin{\Vert} \text{normalized\_question})$$
-- `QueryCache.get(db_url, question)` checks in-memory storage under thread-lock.
-- **If Hit and Valid (TTL < 300s):** Returns cached SQL and reasoning instantly (< 50ms total response time). Pipeline skips directly to DataFrame rendering.
+- `ResultCache.get(db_url, question, schema_fingerprint)` checks for a complete cached answer under thread-lock.
+- **If Hit and Valid (TTL < 120s):** Returns a defensive copy of SQL, DataFrame, and explanation without an LLM or database call.
+- A separate five-minute `QueryCache` can reuse validated SQL while still refreshing live data.
 - **If Miss:** Pipeline proceeds to Stage 3.
 
 ### Stage 3: Schema Introspection & Dynamic Pruning (< 1 ms)
-- **Schema Introspection:** `SchemaCache.get()` provides the normalized `DatabaseSchema` (cached after initial zero-row inspection via SQLAlchemy metadata reflection).
+- **Schema Introspection:** `SchemaCache.get()` provides the normalized `DatabaseSchema` using SQLAlchemy metadata and optimizer row estimates; it does not run `COUNT(*)` across every table.
 - **Pruning Heuristic (`SchemaSelector`):**
   - If total tables $\le 8$, passes full schema.
   - If $> 8$ tables, tokenizes user question into significant word stems ($len \ge 3$).
   - Scores tables based on exact name matches (+10 pts) and column name matches (+5 pts).
-  - Automatically includes **1-hop foreign key neighbors** to ensure multi-table JOIN paths are never severed.
+  - Uses business synonyms, singularization, inferred imported-data relationships, and shortest foreign-key paths to preserve required bridge tables.
   - Generates token-compact DDL representations to minimize LLM prompt token consumption.
 
 ### Stage 4: Dialect-Aware Structured SQL Generation (~ 1.5 – 2.0 s)
@@ -122,14 +123,14 @@ Here is the exact lifecycle of a user query, from keyboard to rendered dashboard
   1. Selected compact schema DDL.
   2. Database dialect rules (e.g., SQLite `strftime` vs PostgreSQL `DATE_TRUNC` vs MySQL `DATE_FORMAT`).
   3. Structured output format (JSON with `sql`, `tables_used`, `reasoning_summary`, `confidence`).
-- Invokes Groq LPU API (`openai/gpt-oss-120b` or fallback priority models) with `temperature=0.0`.
+- Starts with `openai/gpt-oss-20b` for simple questions and escalates complex or low-confidence requests to `openai/gpt-oss-120b`.
 - Strips `<think>` tags and parses structured response.
 
 ### Stage 5: Hardened AST Security Guardrails (< 5 ms)
 - The generated SQL string is passed through `validate_sql(sql, max_rows=500)`.
 - **Comment Strip:** Strips `--` and `/* */` comments to neutralize comment bypass tricks.
 - **Multi-statement Detection:** Rejects queries containing unquoted semicolons (prevents chained injections like `SELECT 1; DROP TABLE users;`).
-- **AST Token Stream Validation:** Validates using `sqlparse` that root and subquery/CTE statements are strictly `DQL` (`SELECT`).
+- **Dialect-Aware AST Validation:** Uses `sqlglot` to require a query AST, reject write/admin nodes, and validate referenced tables and columns against the selected schema.
 - **Keyword & Dialect Exploit Blacklist:** Scans AST tokens for destructive commands (`INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`, `TRUNCATE`, `EXEC`, `PRAGMA`, `ATTACH`, `GRANT`, `REVOKE`, `KILL`) and dangerous functions (`PG_SLEEP`, `PG_READ_FILE`, `INTO OUTFILE`, `LOAD DATA`, `BENCHMARK`).
 - **LIMIT Enforcement:** Appends `LIMIT 500` if absent, or caps existing limits if $> 500$.
 
@@ -146,14 +147,15 @@ Here is the exact lifecycle of a user query, from keyboard to rendered dashboard
   - $1 \text{ Datetime/Period} + 1 \text{ Numeric}$: Renders a **Time-Series Line Chart** with markers.
   - Multi-column / text-heavy: Renders an interactive **Data Table**.
 
-### Stage 8: Executive Business Insights Generation (~ 0.5 s)
-- `app/explain.py` evaluates query results and invokes Groq to synthesize a 2–3 sentence executive briefing detailing:
+### Stage 8: Executive Business Insights Generation
+- Common scalar, metric, ranking, and time-series results use a deterministic local summarizer, avoiding a second model call.
+- Complex results can invoke Groq for a 2–3 sentence briefing. Aggregate statistics are sent by default; raw rows require explicit user opt-in.
   - Direct answer to the user's question.
   - Key business context (drivers, percentages, comparisons).
   - Practical operational takeaway.
 
 ### Stage 9: Cache Commit & State Isolation
-- Stores `(SQLGenerationResult, timestamp)` into `QueryCache`.
+- Stores generated SQL in `QueryCache` and bounded complete results in `ResultCache` using the schema fingerprint.
 - Updates Streamlit session state (`latest_df`, `latest_sql`, `latest_chart`, `latest_insight`).
 
 ---
@@ -165,7 +167,7 @@ Here is the exact lifecycle of a user query, from keyboard to rendered dashboard
 | **SQL Generation Architecture** | Single-Turn Dialect-Aware Generation + AST Guardrails | Multi-turn ReAct Agent (`create_sql_agent` tool loops) | **3-5x faster** (2.1s vs 8-12s). Tool-calling loops query `sql_db_list_tables`, `sql_db_schema`, then execute iteratively, consuming 5x more tokens and frequently hallucinating. Single-turn structured generation with pre-pruned schema is deterministic and fast. |
 | **Schema Introspection** | Zero-Row Metadata Reflection (`inspect(engine)`) | `SELECT * FROM table LIMIT 1` row sampling | Reflecting metadata tables, primary keys, and foreign keys via driver reflection is instant (< 200ms) and avoids transferring sensitive customer row data over the wire during discovery. |
 | **Schema Pruning Strategy** | Heuristic Token Match + 1-Hop Foreign Key Neighbors | Vector Embedding Semantic Search (RAG) | Vector RAG over schemas requires embedding models, vector DB infrastructure, and often breaks relational JOIN paths. Our 1-hop FK graph traversal guarantees all necessary JOIN foreign keys remain connected in the prompt. |
-| **Security Validation** | Deterministic Abstract Syntax Tree (AST) Parsing via `sqlparse` | LLM-based Safety Prompting ("Please only generate safe SELECT...") | **Zero-trust security.** LLMs can be jailbroken via prompt injection. Deterministic AST parsing guarantees that destructive DDL/DML, multi-statement injection, and dialect exploit functions are physically impossible to execute. |
+| **Security Validation** | Dialect-aware AST parsing via `sqlglot`, schema-reference validation, and database read-only transactions | LLM-based Safety Prompting ("Please only generate safe SELECT...") | The model is treated as untrusted; deterministic validation and the database transaction form separate enforcement layers. |
 | **Database Connectivity** | Universal SQLAlchemy 2.0 Pool with Pre-Ping | Hardcoded SQLite / raw driver strings | Provides unified pooling, dialect abstraction, connection recycling, and automated driver normalization (`psycopg2-binary`, `pymysql`, `sqlite3`). |
 | **State Management** | MultiDatabaseManager Registry with Partitioned Caching | Single active database connection in session | Users can register multiple databases (Staging, Production, Demo) and switch between them instantly without restarting the app or leaking cached queries between different databases. |
 

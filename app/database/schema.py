@@ -4,6 +4,7 @@ Represents tables, columns, primary keys, foreign keys, relationships, and index
 """
 from dataclasses import dataclass, field, asdict
 from typing import List, Dict, Optional, Any
+import hashlib
 
 
 @dataclass
@@ -137,3 +138,8 @@ class DatabaseSchema:
             for r in self.relationships:
                 lines.append(str(r))
         return "\n".join(lines)
+
+    def fingerprint(self) -> str:
+        """Stable cache version for table, column, and relationship metadata."""
+        payload = self.to_compact_schema_string().encode("utf-8")
+        return hashlib.sha256(payload).hexdigest()

@@ -4,6 +4,7 @@ Provides thread-safe SQLAlchemy engine pooling, pre-ping validation, and clean r
 """
 import os
 import threading
+import hashlib
 from typing import Dict, Optional
 import sqlalchemy
 from sqlalchemy.engine import Engine
@@ -16,12 +17,17 @@ class EnginePool:
     _instances: Dict[str, Engine] = {}
     _lock = threading.Lock()
 
+    @staticmethod
+    def _key(url: str) -> str:
+        return hashlib.sha256(url.encode("utf-8")).hexdigest()
+
     @classmethod
     def get_or_create_engine(cls, url: str, is_sqlite: bool = False, pool_size: int = 5, max_overflow: int = 10) -> Engine:
         """Get an existing engine for the URL or create a new pooled engine."""
+        key = cls._key(url)
         with cls._lock:
-            if url in cls._instances:
-                return cls._instances[url]
+            if key in cls._instances:
+                return cls._instances[key]
 
             connect_args = {}
             if is_sqlite:
@@ -55,14 +61,14 @@ class EnginePool:
                     pool_timeout=5,
                 )
 
-            cls._instances[url] = engine
+            cls._instances[key] = engine
             return engine
 
     @classmethod
     def dispose_engine(cls, url: str) -> None:
         """Safely dispose of an engine and remove from pool registry."""
         with cls._lock:
-            engine = cls._instances.pop(url, None)
+            engine = cls._instances.pop(cls._key(url), None)
             if engine:
                 try:
                     engine.dispose()

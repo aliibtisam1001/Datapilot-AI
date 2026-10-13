@@ -1,9 +1,13 @@
 import sys
 sys.stdout.reconfigure(encoding='utf-8')
 import os
+import pytest
 from dotenv import load_dotenv
 
 load_dotenv()
+
+if os.getenv("RUN_LIVE_GROQ_TESTS") != "1":
+    pytest.skip("Set RUN_LIVE_GROQ_TESTS=1 to run live Groq diagnostics", allow_module_level=True)
 
 from langchain_groq import ChatGroq
 from langchain_community.utilities import SQLDatabase

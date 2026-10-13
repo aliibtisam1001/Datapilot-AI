@@ -13,6 +13,7 @@ from langchain_groq import ChatGroq
 from app.database.schema import DatabaseSchema
 from app.guardrails import validate_sql, SQLValidationError
 from app.utils import strip_thinking
+from app.agent.semantic_context import build_semantic_context
 
 
 @dataclass
@@ -78,6 +79,7 @@ class UniversalSQLGenerator:
         dialect = db_schema.dialect.lower()
         dialect_guide = DIALECT_GUIDES.get(dialect, DIALECT_GUIDES["sqlite"])
         schema_text = db_schema.to_compact_schema_string()
+        semantic_context = build_semantic_context(db_schema)
 
         prompt = f"""You are an elite enterprise SQL Data Analyst AI.
 Generate a valid, highly optimized, read-only SQL query to answer the user's question.
@@ -86,6 +88,9 @@ Generate a valid, highly optimized, read-only SQL query to answer the user's que
 {dialect_guide}
 
 {schema_text}
+
+=== BUSINESS SEMANTICS ===
+{semantic_context}
 
 === CRITICAL SQL GENERATION RULES ===
 1. Generate SELECT statements ONLY. Never generate INSERT, UPDATE, DELETE, DROP, ALTER, TRUNCATE, or schema modifications.
@@ -114,20 +119,78 @@ JSON Output:"""
         raw_sql = parsed_json.get("sql", "").strip()
         tables_used = parsed_json.get("tables_used", [])
         reasoning = parsed_json.get("reasoning_summary", "Query generated based on schema analysis.")
-        confidence = float(parsed_json.get("confidence", 0.9))
+        confidence = max(0.0, min(1.0, float(parsed_json.get("confidence", 0.9))))
 
         # If JSON extraction failed to find clean SQL, fallback to extracting SQL block
         if not raw_sql:
             raw_sql = cls._extract_sql_fallback(raw_text)
 
         # Validate with SQL Guardrail layer
-        validated_sql = validate_sql(raw_sql)
+        validated_sql = validate_sql(
+            raw_sql,
+            dialect=dialect,
+            db_schema=db_schema,
+        )
 
         return SQLGenerationResult(
             sql=validated_sql,
             tables_used=tables_used,
             reasoning_summary=reasoning,
             confidence=confidence,
+            raw_response=raw_text,
+        )
+
+    @classmethod
+    def repair_sql(
+        cls,
+        question: str,
+        failed_sql: str,
+        error_message: str,
+        db_schema: DatabaseSchema,
+        llm: Optional[ChatGroq] = None,
+        api_key: Optional[str] = None,
+        model_name: str = "openai/gpt-oss-120b",
+    ) -> SQLGenerationResult:
+        """Perform one bounded repair pass after a database syntax error."""
+        if llm is None:
+            llm = ChatGroq(
+                model=model_name,
+                temperature=0.0,
+                api_key=api_key or os.getenv("GROQ_API_KEY"),
+            )
+
+        dialect = db_schema.dialect.lower()
+        prompt = f"""You are repairing one read-only {dialect.upper()} query.
+Return only one JSON object with keys sql, tables_used, reasoning_summary, confidence.
+Use only the schema shown below. Do not use write operations.
+
+{db_schema.to_compact_schema_string()}
+
+{build_semantic_context(db_schema)}
+
+Question: {question}
+Failed SQL: {failed_sql}
+Sanitized database error: {error_message[:800]}
+
+Corrected JSON:"""
+        response = llm.invoke(prompt)
+        raw_text = strip_thinking(
+            response.content if hasattr(response, "content") else str(response)
+        )
+        parsed = cls._extract_json(raw_text)
+        raw_sql = parsed.get("sql", "").strip() or cls._extract_sql_fallback(raw_text)
+        validated_sql = validate_sql(
+            raw_sql,
+            dialect=dialect,
+            db_schema=db_schema,
+        )
+        return SQLGenerationResult(
+            sql=validated_sql,
+            tables_used=list(parsed.get("tables_used", [])),
+            reasoning_summary=parsed.get(
+                "reasoning_summary", "Corrected query after database validation."
+            ),
+            confidence=max(0.0, min(1.0, float(parsed.get("confidence", 0.75)))),
             raw_response=raw_text,
         )
 
