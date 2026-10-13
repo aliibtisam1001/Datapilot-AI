@@ -7,6 +7,7 @@ from typing import Dict, List, Optional, Any
 from app.database.connection import DatabaseConnectionManager, get_default_olist_engine
 from app.database.cache import SchemaCache
 from app.agent.query_cache import QueryCache
+from app.agent.result_cache import ResultCache
 
 
 class MultiDatabaseManager:
@@ -81,6 +82,10 @@ class MultiDatabaseManager:
         """Disable and unregister the default Olist demo database."""
         if "Olist E-Commerce (Demo)" in self._connections:
             demo_mgr = self._connections.pop("Olist E-Commerce (Demo)")
+            if demo_mgr.normalized_url:
+                SchemaCache.invalidate(demo_mgr.normalized_url)
+                QueryCache.invalidate(demo_mgr.normalized_url)
+                ResultCache.invalidate(demo_mgr.normalized_url)
             demo_mgr.dispose()
             if self._active_name == "Olist E-Commerce (Demo)":
                 self._active_name = next(iter(self._connections), None)
@@ -106,6 +111,10 @@ class MultiDatabaseManager:
         """Disconnect and remove a registered database."""
         if name in self._connections:
             mgr = self._connections.pop(name)
+            if mgr.normalized_url:
+                SchemaCache.invalidate(mgr.normalized_url)
+                QueryCache.invalidate(mgr.normalized_url)
+                ResultCache.invalidate(mgr.normalized_url)
             mgr.dispose()
             if self._active_name == name:
                 self._active_name = next(iter(self._connections)) if self._connections else None

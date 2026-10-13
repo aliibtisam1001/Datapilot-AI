@@ -25,7 +25,7 @@
   ├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
   │                                                                                                                  │
   │   Ask your data. Get the answer in seconds.                                                                      │
-  │   [ 3D WebGL AI Brain Data Core with synaptic particle lights ]                                                   │
+  │   [ Lightweight AI analysis core with optional low-cost animation ]                                               │
   │   [ Pipeline: Natural Language → Schema Pruning → Universal SQL → Guardrails → Live DB → Charts & Briefings ]    │
   │                                                                                                                  │
   │  ┌─────────────────────────────────────┐  ┌───────────────────────────────────────────────┐                      │
@@ -44,12 +44,16 @@
 
 - 🌐 **Universal Multi-Database Support**: Connect instantly to **PostgreSQL**, **MySQL**, and **SQLite** via connection string with automated connection health pre-ping validation.
 - 🔀 **Multi-Database Management & Switching**: Manage multiple registered database connections and switch active contexts on the fly from the top navigation bar without data leakage.
-- ⚡ **Sub-Second Speed & In-Memory Caching**:
+- ⚡ **Low-Compute Routing & In-Memory Caching**:
+  - Complete-result cache avoids repeated LLM and database work for identical questions.
+  - Small-model-first routing escalates only complex or low-confidence questions.
+  - Deterministic summaries eliminate the second LLM call for common KPI and ranking results.
   - Cold End-to-End Query Latency: **~2.1 seconds**
   - Cached Query Latency: **< 50 milliseconds**
   - Instant Schema Introspection: **< 190 ms**
-- 🛡️ **Hardened Enterprise SQL Security Guardrails**:
-  - Deterministic AST SQL parser enforcing read-only access (`SELECT`, `WITH ... SELECT`).
+- 🛡️ **Layered SQL Security Guardrails**:
+  - Dialect-aware `sqlglot` AST validation enforcing read-only access (`SELECT`, `WITH ... SELECT`).
+  - Read-only database transactions and configurable statement timeouts.
   - Blocks all destructive statements (`DROP`, `DELETE`, `INSERT`, `UPDATE`, `ALTER`, `CREATE`, `TRUNCATE`, `PRAGMA`, `ATTACH`, `EXEC`, `GRANT`, `REVOKE`).
   - Dialect exploit prevention (`PG_SLEEP`, `PG_READ_FILE`, `INTO OUTFILE`, `LOAD DATA`, `BENCHMARK`).
   - Anti-injection statement-chaining detection and automated row limit capping (`LIMIT 500`).
@@ -58,8 +62,9 @@
   - Automatically identifies core business entities, revenue/salary aggregates, and time dimensions.
   - Automatically computes high-level executive KPI metrics across any connected database.
 - 💡 **Proactive Executive Briefings**: Synthesizes 3 structured strategic takeaway cards (Performance Leader, Growth & Velocity, Operational Focus) directly from live data.
-- 🧠 **Interactive 3D WebGL Core**: Real-time Three.js 3D AI Brain Torus with floating synaptic data nodes and mouse-parallax physics.
+- 🧠 **Efficient Visual Core**: Lightweight CSS rendering is static by default, with optional animation and no continuous WebGL workload.
 - 👔 **Executive View Mode**: One-click toggle that hides technical SQL queries and DDL details, strictly presenting high-level KPIs, trend charts, and recommendations.
+- 🌱 **Low-Power & Privacy Controls**: Static low-resolution WebGL mode is enabled by default, and raw query rows are never sent for AI explanations unless the user explicitly opts in.
 
 ---
 
@@ -129,7 +134,7 @@ Datapilot-AI/
 ├── schema_notes.md          # Complete entity-relationship schema documentation
 ├── evaluation_report.md     # Multi-domain benchmark & latency report
 ├── streamlit_app.py         # DataPilot AI Command Center application entrypoint
-├── requirements.txt         # Pinned Python dependencies (psycopg2, pymysql, etc.)
+├── requirements.txt         # Minimum compatible Python dependencies
 ├── .env.example             # Environment variables template
 └── README.md                # Enterprise project documentation
 ```
@@ -177,9 +182,15 @@ Open **`http://localhost:8501`** in your browser.
 
 ## 🧪 Automated Testing & Benchmark Suite
 
-### Run Complete Unit & Security Test Suite (100 Tests)
+### Run Complete Offline Unit & Security Test Suite
 ```bash
 pytest tests/ -v
+```
+
+Live Groq diagnostics are intentionally opt-in so normal test collection never consumes tokens or requires network access:
+
+```bash
+RUN_LIVE_GROQ_TESTS=1 pytest tests/ -v
 ```
 
 ### Run Universal Multi-Domain Benchmark Suite
@@ -196,7 +207,7 @@ python tests/universal_benchmark.py
 | **Healthcare & Patient Records** | 3 | 4.60 ms | 0.01 ms | 4 KPIs | 0.01 ms |
 | **Supply Chain & Logistics** | 3 | 4.87 ms | 0.01 ms | 4 KPIs | 0.02 ms |
 
-- **Total Test Suite:** `100 / 100 Passed` (100.0%)
+- **Current Offline Test Suite:** `106 Passed, 5 Live Tests Skipped`
 - **SQL Security Pass Rate:** `100.0%` (34/34 attack vectors blocked)
 - **Cached Query Response Time:** `< 50 milliseconds`
 - **Cold End-to-End Latency:** `2.13 seconds`

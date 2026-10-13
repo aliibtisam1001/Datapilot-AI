@@ -26,7 +26,28 @@ def build_explanation_llm():
     )
 
 
-def explain_result(question: str, df: pd.DataFrame, sql: str = None, llm=None) -> str:
+def _privacy_safe_context(df: pd.DataFrame) -> str:
+    """Describe result shape and aggregates without exposing raw row values."""
+    lines = [f"Rows: {len(df)}", f"Columns: {', '.join(map(str, df.columns))}"]
+    numeric = df.select_dtypes(include="number")
+    if not numeric.empty:
+        for column in numeric.columns[:8]:
+            series = numeric[column].dropna()
+            if not series.empty:
+                lines.append(
+                    f"{column}: min={series.min()}, max={series.max()}, "
+                    f"mean={series.mean():.4g}, sum={series.sum():.4g}"
+                )
+    return "\n".join(lines)
+
+
+def explain_result(
+    question: str,
+    df: pd.DataFrame,
+    sql: str = None,
+    llm=None,
+    include_raw_rows: bool = False,
+) -> str:
     """
     Generate a plain-English explanation of a query result.
 
@@ -42,13 +63,16 @@ def explain_result(question: str, df: pd.DataFrame, sql: str = None, llm=None) -
     if llm is None:
         llm = build_explanation_llm()
 
-    # Format the DataFrame for the prompt
+    # Raw database rows are opt-in because this prompt is sent to an external
+    # model provider. Aggregate context is the privacy-safe default.
     if df.empty:
         data_str = "(No results returned)"
-    elif len(df) <= 20:
+    elif include_raw_rows and len(df) <= 20:
         data_str = df.to_string(index=False)
-    else:
+    elif include_raw_rows:
         data_str = df.head(20).to_string(index=False) + f"\n... ({len(df)} total rows)"
+    else:
+        data_str = _privacy_safe_context(df)
 
     prompt = f"""You are an executive business intelligence analyst assistant. A stakeholder asked a business question, and a SQL query was executed on the database to answer it.
 

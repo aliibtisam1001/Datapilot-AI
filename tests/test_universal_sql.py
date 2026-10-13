@@ -16,6 +16,7 @@ from app.guardrails import validate_sql
 
 load_dotenv()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+RUN_LIVE_GROQ_TESTS = os.getenv("RUN_LIVE_GROQ_TESTS") == "1"
 
 
 @pytest.fixture
@@ -128,7 +129,7 @@ def test_schema_selector_pruning():
     assert "table_7" in pruned.tables
 
 
-@pytest.mark.skipif(not GROQ_API_KEY, reason="GROQ_API_KEY required for live LLM SQL generation tests")
+@pytest.mark.skipif(not (GROQ_API_KEY and RUN_LIVE_GROQ_TESTS), reason="Set RUN_LIVE_GROQ_TESTS=1 for live LLM tests")
 def test_universal_sql_ecommerce(ecommerce_engine):
     """Test SQL generation on custom e-commerce schema."""
     schema = get_database_schema(ecommerce_engine)
@@ -147,7 +148,7 @@ def test_universal_sql_ecommerce(ecommerce_engine):
     assert len(df) >= 1
 
 
-@pytest.mark.skipif(not GROQ_API_KEY, reason="GROQ_API_KEY required for live LLM SQL generation tests")
+@pytest.mark.skipif(not (GROQ_API_KEY and RUN_LIVE_GROQ_TESTS), reason="Set RUN_LIVE_GROQ_TESTS=1 for live LLM tests")
 def test_universal_sql_sales_crm(sales_engine):
     """Test SQL generation on Sales CRM schema."""
     schema = get_database_schema(sales_engine)
@@ -162,7 +163,7 @@ def test_universal_sql_sales_crm(sales_engine):
     assert not df.empty
 
 
-@pytest.mark.skipif(not GROQ_API_KEY, reason="GROQ_API_KEY required for live LLM SQL generation tests")
+@pytest.mark.skipif(not (GROQ_API_KEY and RUN_LIVE_GROQ_TESTS), reason="Set RUN_LIVE_GROQ_TESTS=1 for live LLM tests")
 def test_universal_sql_hr(hr_engine):
     """Test SQL generation on HR Payroll schema."""
     schema = get_database_schema(hr_engine)

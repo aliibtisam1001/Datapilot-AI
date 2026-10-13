@@ -9,6 +9,7 @@ import os
 import re
 import json
 import time
+import secrets
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -429,8 +430,28 @@ st.markdown("""
 
 
 # ── AI Brain & 3D Core Visualization Component (Violet / Fuchsia) ──
-def render_ai_brain_orb():
-    """Renders an interactive Three.js 3D AI Brain Data Core with floating nodes and violet/fuchsia synaptic lights."""
+def render_ai_brain_orb(low_power: bool = True):
+    """Render a lightweight analysis-core visual; animation is optional."""
+    animation = "none" if low_power else "datapilot-orb-spin 12s linear infinite"
+    st.markdown(f"""
+    <style>
+        @keyframes datapilot-orb-spin {{
+            from {{ transform: rotate(0deg); }}
+            to {{ transform: rotate(360deg); }}
+        }}
+        .datapilot-efficient-orb {{
+            width: 92px; height: 92px; margin: 8px auto 28px auto;
+            border-radius: 50%;
+            border: 2px solid rgba(139, 92, 246, 0.75);
+            box-shadow: 0 0 28px rgba(139, 92, 246, 0.45), inset 0 0 20px rgba(232, 121, 249, 0.25);
+            background: radial-gradient(circle at 35% 30%, rgba(232,121,249,.55), rgba(139,92,246,.18) 38%, rgba(5,8,17,.2) 70%);
+            animation: {animation};
+        }}
+    </style>
+    <div class="datapilot-efficient-orb" role="img" aria-label="DataPilot analysis core"></div>
+    """, unsafe_allow_html=True)
+    return
+
     three_html = """
     <!DOCTYPE html>
     <html>
@@ -445,6 +466,7 @@ def render_ai_brain_orb():
     <body>
         <canvas id="orb-canvas"></canvas>
         <script>
+            const lowPower = __LOW_POWER__ || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
             const canvas = document.getElementById('orb-canvas');
             const scene = new THREE.Scene();
             const camera = new THREE.PerspectiveCamera(40, window.innerWidth / 130, 0.1, 1000);
@@ -452,7 +474,7 @@ def render_ai_brain_orb():
 
             const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
             renderer.setSize(window.innerWidth, 130);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setPixelRatio(lowPower ? 1 : Math.min(window.devicePixelRatio, 2));
 
             // Central Brain / Data Core (Torus Knot + Icosahedron Wireframe)
             const coreGroup = new THREE.Group();
@@ -469,7 +491,7 @@ def render_ai_brain_orb():
 
             // Floating Synaptic Data Particles
             const particleGeo = new THREE.BufferGeometry();
-            const particleCount = 40;
+            const particleCount = lowPower ? 12 : 40;
             const posArray = new Float32Array(particleCount * 3);
             for(let i=0; i<particleCount*3; i++){
                 posArray[i] = (Math.random() - 0.5) * 4.5;
@@ -500,10 +522,12 @@ def render_ai_brain_orb():
 
             // Mouse parallax interaction
             let mouseX = 0, mouseY = 0;
-            window.addEventListener('mousemove', (e) => {
-                mouseX = (e.clientX / window.innerWidth - 0.5) * 1.5;
-                mouseY = (e.clientY / 130 - 0.5) * 1.5;
-            });
+            if (!lowPower) {
+                window.addEventListener('mousemove', (e) => {
+                    mouseX = (e.clientX / window.innerWidth - 0.5) * 1.5;
+                    mouseY = (e.clientY / 130 - 0.5) * 1.5;
+                });
+            }
 
             window.addEventListener('resize', () => {
                 camera.aspect = window.innerWidth / 130;
@@ -512,8 +536,14 @@ def render_ai_brain_orb():
             });
 
             let clock = new THREE.Clock();
+            let animationFrame = null;
             function animate() {
-                requestAnimationFrame(animate);
+                if (document.hidden || lowPower) {
+                    animationFrame = null;
+                    renderer.render(scene, camera);
+                    return;
+                }
+                animationFrame = requestAnimationFrame(animate);
                 const t = clock.getElapsedTime();
 
                 coreGroup.rotation.y = t * 0.4 + mouseX * 0.5;
@@ -522,11 +552,15 @@ def render_ai_brain_orb():
 
                 renderer.render(scene, camera);
             }
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden && !lowPower && animationFrame === null) animate();
+            });
             animate();
         </script>
     </body>
     </html>
     """
+    three_html = three_html.replace("__LOW_POWER__", "true" if low_power else "false")
     components.html(three_html, height=135)
 
 
@@ -680,6 +714,14 @@ if "latest_question" not in st.session_state:
     st.session_state.latest_question = ""
 if "user_groq_api_key" not in st.session_state:
     st.session_state.user_groq_api_key = ""
+if "low_power_mode" not in st.session_state:
+    st.session_state.low_power_mode = True
+if "share_result_rows" not in st.session_state:
+    st.session_state.share_result_rows = False
+if "latest_db_url" not in st.session_state:
+    st.session_state.latest_db_url = ""
+if "cache_namespace" not in st.session_state:
+    st.session_state.cache_namespace = secrets.token_hex(16)
 
 
 # ── Top Navigation Bar Header ──
@@ -747,7 +789,7 @@ if "Analyst" in st.session_state.current_nav:
     """, unsafe_allow_html=True)
 
     # 3D AI Brain Core
-    render_ai_brain_orb()
+    render_ai_brain_orb(st.session_state.low_power_mode)
 
     # ── AI Flow Pipeline Bar ──
     st.markdown("""
@@ -972,98 +1014,160 @@ if "Analyst" in st.session_state.current_nav:
                         except Exception:
                             current_schema = None
 
-                    from app.agent import QueryCache
+                    from app.agent import (
+                        QueryCache,
+                        ResultCache,
+                        CachedAnalysis,
+                        model_candidates_for,
+                    )
+                    from app.summarize import summarize_result
 
-                    for model_candidate in MODELS_PRIORITY:
-                        try:
-                            explain_llm = init_explain_llm(groq_key, model_name=model_candidate)
-                            
-                            # 1. Fast Universal SQL Generator with QueryCache
-                            if current_schema:
-                                # Check QueryCache first
-                                cached_res = QueryCache.get(active_db_url, user_input)
-                                if cached_res:
-                                    q_status.write("⚡ Sub-millisecond cache hit! Retrieving cached answer...")
-                                    gen_result = cached_res
-                                else:
-                                    q_status.write("2️⃣ Selecting relevant schema tables & foreign-key paths...")
-                                    relevant_schema = select_relevant_schema(current_schema, user_input)
-                                    
-                                    dialect_str = st.session_state.db_manager.db_type.value.upper() if st.session_state.db_manager else "SQL"
-                                    q_status.write(f"3️⃣ Generating dialect-accurate {dialect_str} query with Groq AI...")
-                                    gen_result = UniversalSQLGenerator.generate_sql(
-                                        question=user_input,
-                                        db_schema=relevant_schema,
-                                        api_key=groq_key,
-                                        model_name=model_candidate,
+                    main_sql = ""
+                    answer = ""
+                    explanation = None
+                    chart_fig = None
+                    df = pd.DataFrame()
+                    used_model = "cache"
+
+                    if not current_schema:
+                        last_err = "Schema discovery failed; query generation was stopped to avoid guessing table or column names."
+                    else:
+                        schema_signature = current_schema.fingerprint()
+                        q_status.write("2️⃣ Selecting relevant schema tables & foreign-key paths...")
+                        relevant_schema = select_relevant_schema(current_schema, user_input)
+
+                        complete_cached = ResultCache.get(
+                            active_db_url,
+                            user_input,
+                            schema_signature,
+                            namespace=st.session_state.cache_namespace,
+                        )
+                        if complete_cached:
+                            q_status.write("⚡ Complete result cache hit — no model or database work needed.")
+                            main_sql = complete_cached.sql
+                            df = complete_cached.dataframe
+                            answer = complete_cached.answer
+                            explanation = complete_cached.explanation
+                            used_model = complete_cached.model_name
+                            chart_fig = auto_chart(df, user_input) if not df.empty else None
+                            execution_success = True
+                        else:
+                            candidates = model_candidates_for(
+                                user_input,
+                                selected_table_count=len(relevant_schema.tables),
+                            )
+                            for model_candidate in candidates:
+                                try:
+                                    used_model = model_candidate
+                                    cached_res = QueryCache.get(
+                                        active_db_url,
+                                        user_input,
+                                        schema_signature=schema_signature,
                                     )
-                                    QueryCache.set(active_db_url, user_input, gen_result)
+                                    if cached_res:
+                                        q_status.write("⚡ SQL cache hit; skipping query generation.")
+                                        gen_result = cached_res
+                                    else:
+                                        dialect_str = st.session_state.db_manager.db_type.value.upper()
+                                        q_status.write(
+                                            f"3️⃣ Generating validated {dialect_str} SQL with {model_candidate}..."
+                                        )
+                                        gen_result = UniversalSQLGenerator.generate_sql(
+                                            question=user_input,
+                                            db_schema=relevant_schema,
+                                            api_key=groq_key,
+                                            model_name=model_candidate,
+                                        )
+                                        # Low-confidence output from the small model is
+                                        # escalated before it reaches the database.
+                                        if gen_result.confidence < 0.65 and model_candidate == candidates[0]:
+                                            continue
 
-                                main_sql = gen_result.sql
-                                answer = gen_result.reasoning_summary
-
-                                q_status.write("4️⃣ Executing query on live database...")
-                                df = pd.DataFrame()
-                                if main_sql and active_engine:
+                                    main_sql = gen_result.sql
+                                    answer = gen_result.reasoning_summary
+                                    q_status.write("4️⃣ Executing inside a read-only transaction...")
                                     try:
                                         df = st.session_state.db_manager.execute_query(main_sql)
-                                    except Exception as qe:
-                                        df = pd.DataFrame()
+                                    except Exception as first_error:
+                                        q_status.write("🔧 Correcting the query once using the sanitized database error...")
+                                        gen_result = UniversalSQLGenerator.repair_sql(
+                                            question=user_input,
+                                            failed_sql=main_sql,
+                                            error_message=str(first_error),
+                                            db_schema=relevant_schema,
+                                            api_key=groq_key,
+                                            model_name=model_candidate,
+                                        )
+                                        main_sql = gen_result.sql
+                                        answer = gen_result.reasoning_summary
+                                        df = st.session_state.db_manager.execute_query(main_sql)
 
-                            else:
-                                q_status.write("2️⃣ Generating SQL query with agent fallback...")
-                                agent, db, llm = init_agent(groq_key, model_name=model_candidate, db_url=active_db_url)
-                                callback_handler = SQLCaptureCallbackHandler()
-                                result = agent.invoke(
-                                    {"input": user_input},
-                                    config={"callbacks": [callback_handler]}
-                                )
-                                answer = strip_thinking(result.get("output", "No response generated."))
-                                main_sql = callback_handler.sql_queries[-1] if callback_handler.sql_queries else None
-                                df = run_query_for_chart(db, validate_sql(main_sql)) if main_sql else pd.DataFrame()
+                                    QueryCache.set(
+                                        active_db_url,
+                                        user_input,
+                                        gen_result,
+                                        schema_signature=schema_signature,
+                                    )
 
-                            chart_fig = None
-                            if not df.empty:
-                                q_status.write("5️⃣ Auto-generating interactive charts...")
-                                try:
-                                    chart_fig = auto_chart(df, user_input)
-                                except Exception:
-                                    pass
+                                    if not df.empty:
+                                        q_status.write("5️⃣ Building the chart locally...")
+                                        chart_fig = auto_chart(df, user_input)
 
-                            explanation = None
-                            if not df.empty:
-                                q_status.write("6️⃣ Synthesizing executive strategic briefing...")
-                                try:
-                                    explanation = explain_result(user_input, df, sql=main_sql, llm=explain_llm)
+                                    explanation = summarize_result(user_input, df)
+                                    if explanation is None:
+                                        q_status.write("6️⃣ Complex result detected; requesting one concise briefing...")
+                                        explain_llm = init_explain_llm(
+                                            groq_key,
+                                            model_name=model_candidate,
+                                        )
+                                        explanation = explain_result(
+                                            user_input,
+                                            df,
+                                            sql=main_sql,
+                                            llm=explain_llm,
+                                            include_raw_rows=st.session_state.share_result_rows,
+                                        )
+                                    else:
+                                        q_status.write("6️⃣ Generated a deterministic briefing with no second model call.")
+
                                     if explanation:
                                         answer = explanation
-                                except Exception:
-                                    pass
+                                    ResultCache.set(
+                                        active_db_url,
+                                        user_input,
+                                        schema_signature,
+                                        CachedAnalysis(
+                                            sql=main_sql,
+                                            dataframe=df,
+                                            answer=answer,
+                                            explanation=explanation,
+                                            model_name=used_model,
+                                        ),
+                                        namespace=st.session_state.cache_namespace,
+                                    )
+                                    execution_success = True
+                                    break
+                                except Exception as e:
+                                    last_err = str(e)
+                                    continue
 
-                            # Save latest analytics state
-                            st.session_state.latest_df = df
-                            st.session_state.latest_sql = main_sql
-                            st.session_state.latest_chart = chart_fig
-                            st.session_state.latest_insight = explanation
-
-                            st.session_state.messages.append({
-                                "role": "assistant",
-                                "answer": answer,
-                                "sql": main_sql,
-                                "df": df,
-                                "chart": chart_fig,
-                                "explanation": explanation,
-                            })
-                            execution_success = True
-                            q_status.update(label="✅ Query completed successfully!", state="complete", expanded=False)
-                            break
-
-                        except Exception as e:
-                            last_err = str(e)
-                            if "429" in last_err or "rate_limit" in last_err.lower():
-                                continue  # Fallback to next model candidate
-                            else:
-                                break
+                    if execution_success:
+                        st.session_state.latest_df = df
+                        st.session_state.latest_sql = main_sql
+                        st.session_state.latest_chart = chart_fig
+                        st.session_state.latest_insight = explanation
+                        st.session_state.latest_db_url = active_db_url
+                        st.session_state.messages.append({
+                            "role": "assistant",
+                            "answer": answer,
+                            "sql": main_sql,
+                            "model": used_model,
+                        })
+                        q_status.update(
+                            label="✅ Query completed successfully!",
+                            state="complete",
+                            expanded=False,
+                        )
 
                     if not execution_success:
                         q_status.update(label="❌ Query execution failed", state="error", expanded=True)
@@ -1174,43 +1278,52 @@ elif "Dashboard" in st.session_state.current_nav:
 
     st.markdown("<div style='margin-bottom: 1.5rem;'></div>", unsafe_allow_html=True)
 
-    # 2 Curated Visual Charts
+    # Two database-derived charts (never hardcoded to the demo dataset).
     dcol1, dcol2 = st.columns(2)
     with dcol1:
-        st.markdown("<div class='workspace-panel'><div class='panel-title'>📈 Monthly Order Velocity (2018)</div>", unsafe_allow_html=True)
-        # 2018 Monthly Sales Trend
-        trend_df = pd.DataFrame({
-            "Month": ["2018-01", "2018-02", "2018-03", "2018-04", "2018-05", "2018-06", "2018-07", "2018-08"],
-            "Orders": [7069, 6555, 7003, 6800, 6749, 6099, 6156, 6351]
-        })
-        fig_trend = px.line(trend_df, x="Month", y="Orders", markers=True)
-        fig_trend.update_layout(
+        st.markdown("<div class='workspace-panel'><div class='panel-title'>📈 Live KPI Comparison</div>", unsafe_allow_html=True)
+        kpi_rows = []
+        for kpi in live_kpis[:4]:
+            numeric_text = re.sub(r"[^0-9.\-]", "", str(kpi["value"]))
+            try:
+                kpi_rows.append({"Metric": kpi["title"], "Value": float(numeric_text)})
+            except ValueError:
+                continue
+        kpi_df = pd.DataFrame(kpi_rows)
+        fig_kpi = px.bar(kpi_df, x="Metric", y="Value", text_auto=True) if not kpi_df.empty else go.Figure()
+        fig_kpi.update_layout(
             paper_bgcolor="rgba(15, 23, 42, 0.7)",
             plot_bgcolor="rgba(10, 15, 28, 0.5)",
             font=dict(color="#F1F5F9"),
             margin=dict(l=20, r=20, t=30, b=20),
             height=300
         )
-        fig_trend.update_traces(line=dict(color="#8B5CF6", width=3), marker=dict(size=8, color="#E879F9"))
-        st.plotly_chart(fig_trend, use_container_width=True)
+        fig_kpi.update_traces(marker_color=["#8B5CF6", "#E879F9", "#10B981", "#F59E0B"])
+        st.plotly_chart(fig_kpi, use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
     with dcol2:
-        st.markdown("<div class='workspace-panel'><div class='panel-title'>🏆 Top 5 Product Categories by Revenue</div>", unsafe_allow_html=True)
-        cat_df = pd.DataFrame({
-            "Category": ["Health & Beauty", "Watches & Gifts", "Bed Bath & Table", "Sports & Leisure", "Computers & Access"],
-            "Revenue_M": [1.26, 1.21, 1.04, 0.99, 0.91]
-        })
-        fig_cat = px.bar(cat_df, x="Revenue_M", y="Category", orientation="h", text="Revenue_M")
-        fig_cat.update_layout(
+        st.markdown("<div class='workspace-panel'><div class='panel-title'>🧭 Schema Complexity</div>", unsafe_allow_html=True)
+        schema_df = pd.DataFrame([
+            {"Table": name, "Columns": len(table.columns)}
+            for name, table in (current_schema.tables.items() if current_schema else [])
+        ]).sort_values("Columns", ascending=True).tail(10)
+        fig_schema = px.bar(
+            schema_df,
+            x="Columns",
+            y="Table",
+            orientation="h",
+            text="Columns",
+        ) if not schema_df.empty else go.Figure()
+        fig_schema.update_layout(
             paper_bgcolor="rgba(15, 23, 42, 0.7)",
             plot_bgcolor="rgba(10, 15, 28, 0.5)",
             font=dict(color="#F1F5F9"),
             margin=dict(l=20, r=20, t=30, b=20),
             height=300
         )
-        fig_cat.update_traces(marker_color=["#8B5CF6", "#E879F9", "#D946EF", "#A855F7", "#F472B6"])
-        st.plotly_chart(fig_cat, use_container_width=True)
+        fig_schema.update_traces(marker_color="#8B5CF6")
+        st.plotly_chart(fig_schema, use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
 
@@ -1298,7 +1411,7 @@ elif "Sources" in st.session_state.current_nav:
 
     # Universal Database Connection Form
     with st.expander("➕ Register a New Database (PostgreSQL / MySQL / SQLite)", expanded=False):
-        st.markdown("<p style='font-size: 13px; color: #94A3B8;'>Enter your database connection URL. Passwords are encrypted in memory and masked in the UI.</p>", unsafe_allow_html=True)
+        st.markdown("<p style='font-size: 13px; color: #94A3B8;'>Enter your database connection URL. Credentials stay in this session and are masked in the UI; use a read-only database account.</p>", unsafe_allow_html=True)
         
         fcol1, fcol2 = st.columns([1.5, 3])
         with fcol1:
@@ -1419,7 +1532,11 @@ elif "Sources" in st.session_state.current_nav:
     with s_col3:
         if st.button("🔄 Refresh", key="btn_refresh_schema", use_container_width=True):
             if st.session_state.db_manager and st.session_state.db_manager.normalized_url:
-                SchemaCache.invalidate(st.session_state.db_manager.normalized_url)
+                refresh_url = st.session_state.db_manager.normalized_url
+                SchemaCache.invalidate(refresh_url)
+                from app.agent import QueryCache, ResultCache
+                QueryCache.invalidate(refresh_url)
+                ResultCache.invalidate(refresh_url)
                 st.success("Schema cache refreshed!")
                 st.rerun()
 
@@ -1530,9 +1647,24 @@ elif "Insights" in st.session_state.current_nav:
 
     from app.analytics import generate_executive_briefing
     current_key = get_groq_api_key()
-    
-    with st.spinner("⚡ Synthesizing proactive executive intelligence briefing..."):
-        briefings = generate_executive_briefing(active_engine, current_schema, api_key=current_key) if active_engine and current_schema else []
+    briefing_cache_key = (
+        f"{st.session_state.multi_db_mgr.active_name}:"
+        f"{current_schema.fingerprint() if current_schema else 'none'}"
+    )
+    if "briefing_cache" not in st.session_state:
+        st.session_state.briefing_cache = {}
+    cached_briefing = st.session_state.briefing_cache.get(briefing_cache_key)
+
+    if cached_briefing and time.time() - cached_briefing[0] < 300:
+        briefings = cached_briefing[1]
+    else:
+        with st.spinner("⚡ Synthesizing proactive executive intelligence briefing..."):
+            briefings = generate_executive_briefing(
+                active_engine,
+                current_schema,
+                api_key=current_key,
+            ) if active_engine and current_schema else []
+        st.session_state.briefing_cache[briefing_cache_key] = (time.time(), briefings)
 
     if not briefings:
         briefings = [
@@ -1582,6 +1714,19 @@ elif "Settings" in st.session_state.current_nav:
             st.session_state.user_groq_api_key = new_key.strip()
             st.success("✅ API Key updated for this session!")
             st.rerun()
+
+    st.markdown("---")
+    st.markdown("### ⚡ Efficiency & Privacy")
+    st.session_state.low_power_mode = st.toggle(
+        "Low-power visual mode",
+        value=st.session_state.low_power_mode,
+        help="Keeps the analysis-core visual static instead of continuously animating it.",
+    )
+    st.session_state.share_result_rows = st.toggle(
+        "Allow raw query rows in AI explanations",
+        value=st.session_state.share_result_rows,
+        help="Off by default. When disabled, only aggregate statistics are sent for complex explanations.",
+    )
 
     st.markdown("---")
     st.markdown("""

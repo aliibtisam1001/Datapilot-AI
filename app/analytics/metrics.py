@@ -4,6 +4,8 @@ Analyzes arbitrary database schemas to automatically identify key business entit
 financial aggregates, and time dimensions.
 """
 import re
+import threading
+import time
 from typing import List, Dict, Any, Optional
 import sqlalchemy
 from sqlalchemy.engine import Engine
@@ -14,6 +16,10 @@ from app.database.schema import DatabaseSchema, TableSchema
 class MetricDiscoveryEngine:
     """Discovers business metrics and KPIs from a database schema."""
 
+    _cache = {}
+    _cache_lock = threading.Lock()
+    _cache_ttl_seconds = 300
+
     @classmethod
     def discover_kpis(cls, engine: Engine, db_schema: DatabaseSchema) -> List[Dict[str, Any]]:
         """
@@ -22,6 +28,14 @@ class MetricDiscoveryEngine:
         """
         kpis: List[Dict[str, Any]] = []
         dialect = db_schema.dialect.lower()
+        cache_key = (
+            engine.url.render_as_string(hide_password=True),
+            db_schema.fingerprint(),
+        )
+        with cls._cache_lock:
+            cached = cls._cache.get(cache_key)
+            if cached and time.time() - cached[0] < cls._cache_ttl_seconds:
+                return [dict(item) for item in cached[1]]
 
         # Helper to safely quote table/column names for the dialect
         def q(name: str) -> str:
@@ -49,12 +63,16 @@ class MetricDiscoveryEngine:
 
         if primary_table:
             try:
-                with engine.connect() as conn:
-                    cnt = conn.execute(sqlalchemy.text(f"SELECT COUNT(*) FROM {q(primary_table.name)}")).scalar()
+                cnt = primary_table.row_count_estimate
+                delta = "Estimated from database statistics"
+                if cnt is None:
+                    with engine.connect() as conn:
+                        cnt = conn.execute(sqlalchemy.text(f"SELECT COUNT(*) FROM {q(primary_table.name)}")).scalar()
+                    delta = "Live Database Record Count"
                 kpis.append({
                     "title": f"Total {primary_table.name.replace('_', ' ').title()}",
                     "value": f"{cnt:,}" if cnt is not None else "N/A",
-                    "delta": "Live Database Record Count",
+                    "delta": delta,
                     "icon": "📦",
                 })
             except Exception:
@@ -122,6 +140,11 @@ class MetricDiscoveryEngine:
                 except Exception:
                     continue
 
+        with cls._cache_lock:
+            cls._cache[cache_key] = (time.time(), [dict(item) for item in kpis])
+            if len(cls._cache) > 64:
+                oldest = min(cls._cache, key=lambda item: cls._cache[item][0])
+                cls._cache.pop(oldest, None)
         return kpis
 
 

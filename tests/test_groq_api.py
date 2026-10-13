@@ -4,12 +4,16 @@ Sends one prompt and prints the real response.
 """
 import os
 import sys
+import pytest
 sys.stdout.reconfigure(encoding='utf-8')
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 
 # Load the API key from .env
 load_dotenv()
+
+if os.getenv("RUN_LIVE_GROQ_TESTS") != "1":
+    pytest.skip("Set RUN_LIVE_GROQ_TESTS=1 to run live Groq diagnostics", allow_module_level=True)
 
 api_key = os.getenv("GROQ_API_KEY")
 if not api_key:
